@@ -167,9 +167,6 @@ jobs:
                   
       - name: Upload to NasuTek MinIO S3
         uses: shallwefootball/s3-upload-action@master
-        env: 
-            super_secret: ${{ secrets.nte_cdn_s3_key_id }}
-        if: ${{ env.super_secret == '' }}
         id: S3
         with:
           aws_key_id: ${{secrets.nte_cdn_s3_key_id}}
