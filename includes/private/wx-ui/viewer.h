@@ -18,6 +18,7 @@ void viewer_update(viewer_t *viewer, void *p);
 void viewer_close_all();
 void update_viewers_menu(void *menu);
 
+extern viewer_t viewer_font;
 extern viewer_t viewer_palette;
 extern viewer_t viewer_palette_16;
 

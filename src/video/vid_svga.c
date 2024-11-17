@@ -628,6 +628,9 @@ void svga_poll(void *p) {
                                 viewer_update(&viewer_palette, svga);
                                 viewer_update(&viewer_palette_16, svga);
                         }
+                        if (changed) {
+                                viewer_update(&viewer_font, svga);
+                        }
                 }
                 if (svga->vc == svga->vsyncstart) {
                         int wx, wy;
@@ -791,6 +794,7 @@ int svga_init(svga_t *svga, void *p, int memsize, void (*recalctimings_ex)(struc
 
         viewer_add("256-colour palette", &viewer_palette, svga);
         viewer_add("16-colour palette", &viewer_palette_16, svga);
+        viewer_add("Font", &viewer_font, svga);
 
         return 0;
 }
