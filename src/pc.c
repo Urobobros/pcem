@@ -70,6 +70,11 @@ uint8_t ethif;
 int inum;
 #endif
 
+int GAMEBLASTER, GUS, SSI2001, voodoo_enabled;
+int gfxcard;
+int readflash;
+int romset;
+
 int window_w, window_h, window_x, window_y, window_remember;
 
 int start_in_fullscreen = 0;
