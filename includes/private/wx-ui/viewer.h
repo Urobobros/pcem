@@ -1,0 +1,47 @@
+#ifndef _VIEWER_H_
+#define _VIEWER_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct viewer_t
+{
+	void *(*open)(void *parent, void *p, const char *title);
+} viewer_t;
+
+void viewer_reset();
+void viewer_add(char *title, viewer_t *viewer, void *p);
+void viewer_open(void *hwnd, int id);
+void viewer_remove(void *viewer);
+void viewer_update(viewer_t *viewer, void *p);
+void viewer_close_all();
+void update_viewers_menu(void *menu);
+
+#define IDM_VIEWER 1600
+#define IDM_VIEWER_MAX 1700
+
+#ifdef __cplusplus
+}
+
+
+class Viewer: public wxFrame
+{
+public:
+	void *p;
+
+	Viewer(wxWindow *parent, wxString title, wxSize size, void *p)
+	: wxFrame(parent, wxID_ANY, title, wxPoint(50, 50), size, wxDEFAULT_FRAME_STYLE),
+	  p(p)
+	{
+		SetClientSize(size);
+	}
+
+	virtual ~Viewer()
+	{
+	}
+};
+
+#endif
+
+#endif
