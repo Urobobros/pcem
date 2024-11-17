@@ -21,6 +21,7 @@ void update_viewers_menu(void *menu);
 extern viewer_t viewer_font;
 extern viewer_t viewer_palette;
 extern viewer_t viewer_palette_16;
+extern viewer_t viewer_vram;
 
 #define IDM_VIEWER 1600
 #define IDM_VIEWER_MAX 1700
