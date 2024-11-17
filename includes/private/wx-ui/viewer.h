@@ -18,6 +18,9 @@ void viewer_update(viewer_t *viewer, void *p);
 void viewer_close_all();
 void update_viewers_menu(void *menu);
 
+extern viewer_t viewer_palette;
+extern viewer_t viewer_palette_16;
+
 #define IDM_VIEWER 1600
 #define IDM_VIEWER_MAX 1700
 
