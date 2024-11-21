@@ -15,12 +15,16 @@ void viewer_add(char *title, viewer_t *viewer, void *p);
 void viewer_open(void *hwnd, int id);
 void viewer_remove(void *viewer);
 void viewer_update(viewer_t *viewer, void *p);
+void viewer_call(viewer_t *viewer, void *p, void (*func)(void *v, void *param), void *param);
 void viewer_close_all();
+void viewer_notify_pause();
+void viewer_notify_resume();
 void update_viewers_menu(void *menu);
 
 extern viewer_t viewer_font;
 extern viewer_t viewer_palette;
 extern viewer_t viewer_palette_16;
+extern viewer_t viewer_voodoo;
 extern viewer_t viewer_vram;
 
 #define IDM_VIEWER 1600
@@ -43,6 +47,14 @@ public:
 	}
 
 	virtual ~Viewer()
+	{
+	}
+
+	virtual void NotifyPause()
+	{
+	}
+
+	virtual void NotifyResume()
 	{
 	}
 };

@@ -524,6 +524,7 @@ int resume_emulation() {
         if (emulation_state == EMULATION_PAUSED) {
                 emulation_state = EMULATION_RUNNING;
                 pause = 0;
+                viewer_notify_resume();
                 return TRUE;
         }
         return FALSE;
@@ -591,6 +592,7 @@ int pause_emulation() {
         pclog("Emulation paused.\n");
         emulation_state = EMULATION_PAUSED;
         pause = 1;
+        viewer_notify_pause();
         return TRUE;
 }
 

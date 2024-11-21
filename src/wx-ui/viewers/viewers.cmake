@@ -8,5 +8,6 @@ set(PCEM_SRC ${PCEM_SRC}
         wx-ui/viewers/viewer.cc
         wx-ui/viewers/viewer_font.cc
 	wx-ui/viewers/viewer_palette.cc
+        wx-ui/viewers/viewer_voodoo.cc
 	wx-ui/viewers/viewer_vram.cc
         )

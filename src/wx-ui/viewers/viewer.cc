@@ -50,7 +50,7 @@ void viewer_add(char *title, viewer_t *viewer, void *p)
 
 void viewer_open(void *parent, int id)
 {
-	Viewer *i = (Viewer *)viewer_routs[id].viewer->open(parent, viewer_routs[0].p, viewer_routs[id].title.c_str());
+	Viewer *i = (Viewer *)viewer_routs[id].viewer->open(parent, viewer_routs[id].p, viewer_routs[id].title.c_str());
 	if (i)
 		viewer_windows.push_back(i);
 }
@@ -67,6 +67,33 @@ void viewer_update(viewer_t *viewer, void *p)
 		if ((*it)->p == p)
 		{
 			(*it)->Refresh();
+		}
+	}
+}
+
+void viewer_notify_pause()
+{
+	for (std::list<Viewer *>::iterator it = viewer_windows.begin(); it != viewer_windows.end(); it++)
+	{
+		(*it)->NotifyPause();
+	}
+}
+
+void viewer_notify_resume()
+{
+	for (std::list<Viewer *>::iterator it = viewer_windows.begin(); it != viewer_windows.end(); it++)
+	{
+		(*it)->NotifyResume();
+	}
+}
+
+void viewer_call(viewer_t *viewer, void *p, void (*func)(void *v, void *param), void *param)
+{
+	for (std::list<Viewer *>::iterator it = viewer_windows.begin(); it != viewer_windows.end(); it++)
+	{
+		if ((*it)->p == p)
+		{
+			func(*it, param);
 		}
 	}
 }
