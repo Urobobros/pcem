@@ -26,6 +26,9 @@
 ## Added the following Video Cards to v18
 - Matrox Millennium
 
+## Added the following Sound Cards to v18
+- Mindscape Music Board
+
 ## Developer Changes to v18
 - First release to switch from autotools/make to CMake/Ninja
 - Legacy autotools and mingw makefiles are removed
