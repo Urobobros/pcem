@@ -826,6 +826,113 @@ void codegen_block_end_recompile(codeblock_t *block)
         codegen_ir_compile(ir_data, block);
 }
 
+typedef struct {
+    uint32_t pc, _cs, phys, phys_2;
+    uint16_t status, flags;
+    uint8_t ins, TOP;
+    uint16_t parent, left, right;
+    uint64_t page_mask, page_mask2;
+    uint16_t prev, next;
+    uint16_t prev_2, next_2;
+    uint32_t head_mem_block;
+} codeblock_disk_t;
+
+void codegen_state_save(FILE *f)
+{
+    fwrite(&block_free_list, sizeof(block_free_list), 1, f);
+    fwrite(&block_dirty_list_head, sizeof(block_dirty_list_head), 1, f);
+    fwrite(&block_dirty_list_tail, sizeof(block_dirty_list_tail), 1, f);
+    fwrite(&dirty_list_size, sizeof(dirty_list_size), 1, f);
+    fwrite(&block_current, sizeof(block_current), 1, f);
+    fwrite(&block_pos, sizeof(block_pos), 1, f);
+
+    for (int i = 0; i < BLOCK_SIZE; i++)
+    {
+        codeblock_disk_t d;
+        codeblock_t *b = &codeblock[i];
+        d.pc = b->pc;
+        d._cs = b->_cs;
+        d.phys = b->phys;
+        d.phys_2 = b->phys_2;
+        d.status = b->status;
+        d.flags = b->flags;
+        d.ins = b->ins;
+        d.TOP = b->TOP;
+        d.parent = b->parent;
+        d.left = b->left;
+        d.right = b->right;
+        d.page_mask = b->page_mask;
+        d.page_mask2 = b->page_mask2;
+        d.prev = b->prev;
+        d.next = b->next;
+        d.prev_2 = b->prev_2;
+        d.next_2 = b->next_2;
+        d.head_mem_block = codegen_allocator_block_index(b->head_mem_block);
+        fwrite(&d, sizeof(d), 1, f);
+    }
+    fwrite(codeblock_hash, sizeof(uint16_t), HASH_SIZE, f);
+}
+
+void codegen_state_load(FILE *f)
+{
+    fread(&block_free_list, sizeof(block_free_list), 1, f);
+    fread(&block_dirty_list_head, sizeof(block_dirty_list_head), 1, f);
+    fread(&block_dirty_list_tail, sizeof(block_dirty_list_tail), 1, f);
+    fread(&dirty_list_size, sizeof(dirty_list_size), 1, f);
+    fread(&block_current, sizeof(block_current), 1, f);
+    fread(&block_pos, sizeof(block_pos), 1, f);
+
+    mem_reset_page_blocks();
+
+    for (int i = 0; i < BLOCK_SIZE; i++)
+    {
+        codeblock_disk_t d;
+        fread(&d, sizeof(d), 1, f);
+        codeblock_t *b = &codeblock[i];
+        b->pc = d.pc;
+        b->_cs = d._cs;
+        b->phys = d.phys;
+        b->phys_2 = d.phys_2;
+        b->status = d.status;
+        b->flags = d.flags;
+        b->ins = d.ins;
+        b->TOP = d.TOP;
+        b->parent = d.parent;
+        b->left = d.left;
+        b->right = d.right;
+        b->page_mask = d.page_mask;
+        b->page_mask2 = d.page_mask2;
+        b->prev = d.prev;
+        b->next = d.next;
+        b->prev_2 = d.prev_2;
+        b->next_2 = d.next_2;
+        b->head_mem_block = codegen_allocator_index_block(d.head_mem_block);
+        if (b->pc != BLOCK_PC_INVALID)
+        {
+            b->dirty_mask = &pages[b->phys >> 12].dirty_mask;
+            if (b->page_mask2)
+                b->dirty_mask2 = &pages[b->phys_2 >> 12].dirty_mask;
+            else
+                b->dirty_mask2 = NULL;
+            b->data = codeblock_allocator_get_ptr(b->head_mem_block);
+
+            if (b->prev == BLOCK_INVALID)
+                pages[b->phys >> 12].block = get_block_nr(b);
+            if ((b->flags & CODEBLOCK_HAS_PAGE2) && b->prev_2 == BLOCK_INVALID)
+                pages[b->phys_2 >> 12].block_2 = get_block_nr(b);
+            if (b->parent == BLOCK_INVALID)
+                pages[b->phys >> 12].head = get_block_nr(b);
+        }
+        else
+        {
+            b->dirty_mask = NULL;
+            b->dirty_mask2 = NULL;
+            b->data = NULL;
+        }
+    }
+    fread(codeblock_hash, sizeof(uint16_t), HASH_SIZE, f);
+}
+
 void codegen_flush()
 {
         return;
@@ -887,3 +994,4 @@ void codegen_mark_code_present_multibyte(codeblock_t *block, uint32_t start_pc, 
                 }
         }
 }
+

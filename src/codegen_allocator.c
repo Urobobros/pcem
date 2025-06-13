@@ -10,13 +10,6 @@
 #include "codegen.h"
 #include "codegen_allocator.h"
 
-typedef struct mem_block_t
-{
-        uint32_t offset; /*Offset into mem_block_alloc*/
-        uint32_t next;
-        uint16_t code_block;
-} mem_block_t;
-
 static mem_block_t mem_blocks[MEM_BLOCK_NR];
 static uint32_t mem_block_free_list;
 static uint8_t *mem_block_alloc = NULL;
@@ -123,4 +116,40 @@ void codegen_allocator_clean_blocks(struct mem_block_t *block)
 			break;
         }
 #endif
+}
+
+void codegen_allocator_state_save(FILE *f)
+{
+    fwrite(&mem_block_free_list, sizeof(mem_block_free_list), 1, f);
+    fwrite(mem_blocks, sizeof(mem_blocks), 1, f);
+    fwrite(mem_block_alloc, MEM_BLOCK_NR * MEM_BLOCK_SIZE, 1, f);
+}
+
+void codegen_allocator_state_load(FILE *f)
+{
+    fread(&mem_block_free_list, sizeof(mem_block_free_list), 1, f);
+    fread(mem_blocks, sizeof(mem_blocks), 1, f);
+    fread(mem_block_alloc, MEM_BLOCK_NR * MEM_BLOCK_SIZE, 1, f);
+#if defined __ARM_EABI__ || defined __aarch64__
+    for (int i = 0; i < MEM_BLOCK_NR; i++)
+    {
+        if (mem_blocks[i].code_block != BLOCK_INVALID)
+            __clear_cache(&mem_block_alloc[mem_blocks[i].offset],
+                           &mem_block_alloc[mem_blocks[i].offset + MEM_BLOCK_SIZE]);
+    }
+#endif
+}
+
+int codegen_allocator_block_index(struct mem_block_t *block)
+{
+    if (!block)
+        return 0;
+    return (block - mem_blocks) + 1;
+}
+
+struct mem_block_t *codegen_allocator_index_block(int index)
+{
+    if (!index)
+        return NULL;
+    return &mem_blocks[index - 1];
 }
