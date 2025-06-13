@@ -22,6 +22,15 @@
 #define MEM_BLOCK_MASK (MEM_BLOCK_NR-1)
 #define MEM_BLOCK_SIZE 0x3c0
 
+#include <stdio.h>
+
+typedef struct mem_block_t
+{
+    uint32_t offset; /*Offset into mem_block_alloc*/
+    uint32_t next;
+    uint16_t code_block;
+} mem_block_t;
+
 void codegen_allocator_init();
 /*Allocate a mem_block_t, and the associated backing memory.
   If parent is non-NULL, then the new block will be added to the list in
@@ -33,6 +42,14 @@ void codegen_allocator_free(struct mem_block_t *block);
 uint8_t *codeblock_allocator_get_ptr(struct mem_block_t *block);
 /*Cache clean memory block list*/
 void codegen_allocator_clean_blocks(struct mem_block_t *block);
+
+/*Save/restore allocator state*/
+void codegen_allocator_state_save(FILE *f);
+void codegen_allocator_state_load(FILE *f);
+
+/*Convert between mem_block_t pointer and index used for serialization*/
+int codegen_allocator_block_index(struct mem_block_t *block);
+struct mem_block_t *codegen_allocator_index_block(int index);
 
 extern int codegen_allocator_usage;
 
