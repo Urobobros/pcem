@@ -52,6 +52,7 @@
 #include "hdd.h"
 #include "x86.h"
 #include "paths.h"
+#include "jit_cache.h"
 
 #ifdef USE_NETWORKING
 #include "nethandler.h"
@@ -307,6 +308,7 @@ void initpc(int argc, char *argv[])
         mem_add_bios();
                         
         codegen_init();
+        jit_cache_load(NULL);
         
         timer_reset();
         sound_reset();
@@ -615,6 +617,7 @@ void speedchanged()
 
 void closepc()
 {
+        jit_cache_save(NULL);
         codegen_close();
         atapi->exit();
 //        ioctl_close();
