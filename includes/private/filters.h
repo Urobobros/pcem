@@ -3,10 +3,18 @@
 #define NCoef 2
 
 // fc=350Hz
-static inline float low_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.00049713569693400649, 0.00099427139386801299, 0.00049713569693400649};
+static const float low_iir_ACoef[NCoef + 1] = {
+        0.00049713569693400649,
+        0.00099427139386801299,
+        0.00049713569693400649,
+};
+static const float low_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.93522955470669530000,
+        0.93726236021404663000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.93522955470669530000, 0.93726236021404663000};
+static inline float low_iir(int i, float NewSample) {
 
         static float y[2][NCoef + 1]; // output samples
         static float x[2][NCoef + 1]; // input samples
@@ -20,18 +28,26 @@ static inline float low_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = low_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += low_iir_ACoef[n] * x[i][n] - low_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
 
 // fc=350Hz
+static const float low_cut_iir_ACoef[NCoef + 1] = {
+        0.96839970114733542000,
+        -1.93679940229467080000,
+        0.96839970114733542000,
+};
+static const float low_cut_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.93522955471202770000,
+        0.93726236021916731000,
+};
+
 static inline float low_cut_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.96839970114733542000, -1.93679940229467080000, 0.96839970114733542000};
-
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.93522955471202770000, 0.93726236021916731000};
 
         static float y[2][NCoef + 1]; // output samples
         static float x[2][NCoef + 1]; // input samples
@@ -45,18 +61,26 @@ static inline float low_cut_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = low_cut_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += low_cut_iir_ACoef[n] * x[i][n] - low_cut_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
 
 // fc=3.5kHz
+static const float high_iir_ACoef[NCoef + 1] = {
+        0.72248704753064896000,
+        -1.44497409506129790000,
+        0.72248704753064896000,
+};
+static const float high_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.36640781670578510000,
+        0.52352474706139873000,
+};
+
 static inline float high_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.72248704753064896000, -1.44497409506129790000, 0.72248704753064896000};
-
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.36640781670578510000, 0.52352474706139873000};
         static float y[2][NCoef + 1]; // output samples
         static float x[2][NCoef + 1]; // input samples
         int n;
@@ -69,18 +93,26 @@ static inline float high_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = high_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += high_iir_ACoef[n] * x[i][n] - high_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
 
 // fc=3.5kHz
-static inline float high_cut_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.03927726802250377400, 0.07855453604500754700, 0.03927726802250377400};
+static const float high_cut_iir_ACoef[NCoef + 1] = {
+        0.03927726802250377400,
+        0.07855453604500754700,
+        0.03927726802250377400,
+};
+static const float high_cut_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.36640781666419950000,
+        0.52352474703279628000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.36640781666419950000, 0.52352474703279628000};
+static inline float high_cut_iir(int i, float NewSample) {
         static float y[2][NCoef + 1]; // output samples
         static float x[2][NCoef + 1]; // input samples
         int n;
@@ -93,9 +125,9 @@ static inline float high_cut_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = high_cut_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += high_cut_iir_ACoef[n] * x[i][n] - high_cut_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
@@ -104,10 +136,18 @@ static inline float high_cut_iir(int i, float NewSample) {
 #define NCoef 2
 
 // fc=3.2kHz
-static inline float sb_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.03356837051492005100, 0.06713674102984010200, 0.03356837051492005100};
+static const float sb_iir_ACoef[NCoef + 1] = {
+        0.03356837051492005100,
+        0.06713674102984010200,
+        0.03356837051492005100,
+};
+static const float sb_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.41898265221812010000,
+        0.55326988968868285000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.41898265221812010000, 0.55326988968868285000};
+static inline float sb_iir(int i, float NewSample) {
 
         /*    float ACoef[NCoef+1] = {
                 0.17529642630084405000,
@@ -130,9 +170,9 @@ static inline float sb_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = sb_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += sb_iir_ACoef[n] * x[i][n] - sb_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
@@ -141,10 +181,18 @@ static inline float sb_iir(int i, float NewSample) {
 #define NCoef 2
 
 // fc=150Hz
-static inline float adgold_highpass_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.98657437157334349000, -1.97314874314668700000, 0.98657437157334349000};
+static const float adgold_highpass_iir_ACoef[NCoef + 1] = {
+        0.98657437157334349000,
+        -1.97314874314668700000,
+        0.98657437157334349000,
+};
+static const float adgold_highpass_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.97223372919758360000,
+        0.97261396931534050000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.97223372919758360000, 0.97261396931534050000};
+static inline float adgold_highpass_iir(int i, float NewSample) {
 
         static float y[2][NCoef + 1]; // output samples
         static float x[2][NCoef + 1]; // input samples
@@ -158,18 +206,26 @@ static inline float adgold_highpass_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = adgold_highpass_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += adgold_highpass_iir_ACoef[n] * x[i][n] - adgold_highpass_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
 
 // fc=150Hz
-static inline float adgold_lowpass_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.00009159473951071446, 0.00018318947902142891, 0.00009159473951071446};
+static const float adgold_lowpass_iir_ACoef[NCoef + 1] = {
+        0.00009159473951071446,
+        0.00018318947902142891,
+        0.00009159473951071446,
+};
+static const float adgold_lowpass_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.97223372919526560000,
+        0.97261396931306277000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.97223372919526560000, 0.97261396931306277000};
+static inline float adgold_lowpass_iir(int i, float NewSample) {
 
         static float y[2][NCoef + 1]; // output samples
         static float x[2][NCoef + 1]; // input samples
@@ -183,18 +239,26 @@ static inline float adgold_lowpass_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = adgold_lowpass_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += adgold_lowpass_iir_ACoef[n] * x[i][n] - adgold_lowpass_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
 
 // fc=56Hz
-static inline float adgold_pseudo_stereo_iir(float NewSample) {
-        float ACoef[NCoef + 1] = {0.00001409030866231767, 0.00002818061732463533, 0.00001409030866231767};
+static const float adgold_pseudo_stereo_iir_ACoef[NCoef + 1] = {
+        0.00001409030866231767,
+        0.00002818061732463533,
+        0.00001409030866231767,
+};
+static const float adgold_pseudo_stereo_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.98733021473466760000,
+        0.98738361004063568000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.98733021473466760000, 0.98738361004063568000};
+static inline float adgold_pseudo_stereo_iir(float NewSample) {
 
         static float y[NCoef + 1]; // output samples
         static float x[NCoef + 1]; // input samples
@@ -208,18 +272,26 @@ static inline float adgold_pseudo_stereo_iir(float NewSample) {
 
         // Calculate the new output
         x[0] = NewSample;
-        y[0] = ACoef[0] * x[0];
+        y[0] = adgold_pseudo_stereo_iir_ACoef[0] * x[0];
         for (n = 1; n <= NCoef; n++)
-                y[0] += ACoef[n] * x[n] - BCoef[n] * y[n];
+                y[0] += adgold_pseudo_stereo_iir_ACoef[n] * x[n] - adgold_pseudo_stereo_iir_BCoef[n] * y[n];
 
         return y[0];
 }
 
 // fc=3.2kHz - probably incorrect
-static inline float dss_iir(float NewSample) {
-        float ACoef[NCoef + 1] = {0.03356837051492005100, 0.06713674102984010200, 0.03356837051492005100};
+static const float dss_iir_ACoef[NCoef + 1] = {
+        0.03356837051492005100,
+        0.06713674102984010200,
+        0.03356837051492005100,
+};
+static const float dss_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -1.41898265221812010000,
+        0.55326988968868285000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -1.41898265221812010000, 0.55326988968868285000};
+static inline float dss_iir(float NewSample) {
 
         static float y[NCoef + 1]; // output samples
         static float x[NCoef + 1]; // input samples
@@ -233,9 +305,9 @@ static inline float dss_iir(float NewSample) {
 
         // Calculate the new output
         x[0] = NewSample;
-        y[0] = ACoef[0] * x[0];
+        y[0] = dss_iir_ACoef[0] * x[0];
         for (n = 1; n <= NCoef; n++)
-                y[0] += ACoef[n] * x[n] - BCoef[n] * y[n];
+                y[0] += dss_iir_ACoef[n] * x[n] - dss_iir_BCoef[n] * y[n];
 
         return y[0];
 }
@@ -243,10 +315,16 @@ static inline float dss_iir(float NewSample) {
 #undef NCoef
 #define NCoef 1
 /*Basic high pass to remove DC bias. fc=10Hz*/
-static inline float dac_iir(int i, float NewSample) {
-        float ACoef[NCoef + 1] = {0.99901119820285345000, -0.99901119820285345000};
+static const float dac_iir_ACoef[NCoef + 1] = {
+        0.99901119820285345000,
+        -0.99901119820285345000,
+};
+static const float dac_iir_BCoef[NCoef + 1] = {
+        1.00000000000000000000,
+        -0.99869185905052738000,
+};
 
-        float BCoef[NCoef + 1] = {1.00000000000000000000, -0.99869185905052738000};
+static inline float dac_iir(int i, float NewSample) {
 
         static float y[2][NCoef + 1]; // output samples
         static float x[2][NCoef + 1]; // input samples
@@ -260,9 +338,9 @@ static inline float dac_iir(int i, float NewSample) {
 
         // Calculate the new output
         x[i][0] = NewSample;
-        y[i][0] = ACoef[0] * x[i][0];
+        y[i][0] = dac_iir_ACoef[0] * x[i][0];
         for (n = 1; n <= NCoef; n++)
-                y[i][0] += ACoef[n] * x[i][n] - BCoef[n] * y[i][n];
+                y[i][0] += dac_iir_ACoef[n] * x[i][n] - dac_iir_BCoef[n] * y[i][n];
 
         return y[i][0];
 }
