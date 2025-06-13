@@ -27,3 +27,7 @@ extern const uOpFn uop_handlers[];
 
 extern int codegen_host_reg_list[CODEGEN_HOST_REGS];
 extern int codegen_host_fp_reg_list[CODEGEN_HOST_FP_REGS];
+
+#include <stdio.h>
+void codegen_state_save(FILE *f);
+void codegen_state_load(FILE *f);
