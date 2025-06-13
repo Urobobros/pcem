@@ -130,6 +130,14 @@ void codegen_allocator_state_load(FILE *f)
     fread(&mem_block_free_list, sizeof(mem_block_free_list), 1, f);
     fread(mem_blocks, sizeof(mem_blocks), 1, f);
     fread(mem_block_alloc, MEM_BLOCK_NR * MEM_BLOCK_SIZE, 1, f);
+#if defined __ARM_EABI__ || defined __aarch64__
+    for (int i = 0; i < MEM_BLOCK_NR; i++)
+    {
+        if (mem_blocks[i].code_block != BLOCK_INVALID)
+            __clear_cache(&mem_block_alloc[mem_blocks[i].offset],
+                           &mem_block_alloc[mem_blocks[i].offset + MEM_BLOCK_SIZE]);
+    }
+#endif
 }
 
 int codegen_allocator_block_index(struct mem_block_t *block)

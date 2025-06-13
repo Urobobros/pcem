@@ -882,6 +882,8 @@ void codegen_state_load(FILE *f)
     fread(&block_current, sizeof(block_current), 1, f);
     fread(&block_pos, sizeof(block_pos), 1, f);
 
+    mem_reset_page_blocks();
+
     for (int i = 0; i < BLOCK_SIZE; i++)
     {
         codeblock_disk_t d;
@@ -912,11 +914,20 @@ void codegen_state_load(FILE *f)
                 b->dirty_mask2 = &pages[b->phys_2 >> 12].dirty_mask;
             else
                 b->dirty_mask2 = NULL;
+            b->data = codeblock_allocator_get_ptr(b->head_mem_block);
+
+            if (b->prev == BLOCK_INVALID)
+                pages[b->phys >> 12].block = get_block_nr(b);
+            if ((b->flags & CODEBLOCK_HAS_PAGE2) && b->prev_2 == BLOCK_INVALID)
+                pages[b->phys_2 >> 12].block_2 = get_block_nr(b);
+            if (b->parent == BLOCK_INVALID)
+                pages[b->phys >> 12].head = get_block_nr(b);
         }
         else
         {
             b->dirty_mask = NULL;
             b->dirty_mask2 = NULL;
+            b->data = NULL;
         }
     }
     fread(codeblock_hash, sizeof(uint16_t), HASH_SIZE, f);
