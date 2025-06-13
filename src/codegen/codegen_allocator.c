@@ -10,6 +10,7 @@
 #include "ibm.h"
 #include "codegen.h"
 #include "codegen_allocator.h"
+#include <string.h>
 
 typedef struct mem_block_t {
         uint32_t offset; /*Offset into mem_block_alloc*/
@@ -115,4 +116,50 @@ void codegen_allocator_clean_blocks(struct mem_block_t *block) {
                         break;
         }
 #endif
+}
+
+size_t codeblock_allocator_get_size(struct mem_block_t *block, int last_pos) {
+        size_t size = 0;
+        while (1) {
+                if (block->next) {
+                        size += MEM_BLOCK_SIZE;
+                        block = &mem_blocks[block->next - 1];
+                } else {
+                        size += last_pos;
+                        break;
+                }
+        }
+        return size;
+}
+
+size_t codeblock_allocator_copy(struct mem_block_t *block, int last_pos, uint8_t *dest) {
+        size_t pos = 0;
+        while (1) {
+                uint8_t *src = &mem_block_alloc[block->offset];
+                if (block->next) {
+                        memcpy(dest + pos, src, MEM_BLOCK_SIZE);
+                        pos += MEM_BLOCK_SIZE;
+                        block = &mem_blocks[block->next - 1];
+                } else {
+                        memcpy(dest + pos, src, last_pos);
+                        pos += last_pos;
+                        break;
+                }
+        }
+        return pos;
+}
+
+void codeblock_allocator_write(struct mem_block_t *block, int last_pos, const uint8_t *src) {
+        size_t pos = 0;
+        while (1) {
+                uint8_t *dst = &mem_block_alloc[block->offset];
+                if (block->next) {
+                        memcpy(dst, src + pos, MEM_BLOCK_SIZE);
+                        pos += MEM_BLOCK_SIZE;
+                        block = &mem_blocks[block->next - 1];
+                } else {
+                        memcpy(dst, src + pos, last_pos);
+                        break;
+                }
+        }
 }

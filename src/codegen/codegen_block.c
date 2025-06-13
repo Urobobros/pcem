@@ -15,6 +15,8 @@
 #include "codegen_backend.h"
 #include "codegen_ir.h"
 #include "codegen_reg.h"
+#include "codegen_cache.h"
+#include "hdd/minivhd/minivhd_util.h"
 
 uint8_t *block_write_data = NULL;
 
@@ -779,7 +781,37 @@ void codegen_block_end_recompile(codeblock_t *block) {
                 block->flags &= ~CODEBLOCK_STATIC_TOP;
 
         codegen_accumulate_flush(ir_data);
+
+        /*Calculate CRC of original code bytes*/
+        size_t src_size = codegen_endpc - block->pc;
+        uint8_t *src_buf = malloc(src_size);
+        for (size_t i = 0; i < src_size; i++)
+                src_buf[i] = readmembl(block->pc + i);
+        uint32_t crc = mvhd_crc32(src_buf, src_size);
+
+        int cached_pos = 0;
+        int cached_size = codegen_cache_lookup(crc, src_buf, src_size,
+                                               block->head_mem_block, &cached_pos);
+        if (cached_size > 0) {
+                block->compiled_size = cached_size;
+                block->last_pos = cached_pos;
+                block->crc = crc;
+                free(src_buf);
+                codegen_allocator_clean_blocks(block->head_mem_block);
+                return;
+        }
+
         codegen_ir_compile(ir_data, block);
+        block->last_pos = block_pos;
+        block->compiled_size =
+                codeblock_allocator_get_size(block->head_mem_block, block_pos);
+        size_t comp_size = block->compiled_size;
+        uint8_t *comp_buf = malloc(comp_size);
+        codeblock_allocator_copy(block->head_mem_block, block_pos, comp_buf);
+        codegen_cache_store(crc, src_buf, src_size, comp_buf, comp_size, block_pos);
+        block->crc = crc;
+        free(src_buf);
+        free(comp_buf);
 }
 
 void codegen_flush() { return; }
