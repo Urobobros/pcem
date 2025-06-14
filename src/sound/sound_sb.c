@@ -654,6 +654,9 @@ void sb_ct1745_mixer_write(uint16_t addr, uint8_t val, void *p) {
                         if (val & 0x80)
                                 sb_dsp_setdma16(&sb->dsp, 7);
                         break;
+                case 0x83:
+                        /* unimplemented register used by CSP.SYS detection */
+                        break;
                 }
 
                 mixer->output_selector = mixer->regs[0x3C];
@@ -792,6 +795,9 @@ uint8_t sb_ct1745_mixer_read(uint16_t addr, void *p) {
                  * keeping it for now. */
                 return ((sb->dsp.sb_irq8) ? 1 : 0) | ((sb->dsp.sb_irq16) ? 2 : 0) | 0x4000;
 
+        case 0x83:
+                return mixer->regs[mixer->index];
+
                 /* TODO: creative drivers read and write on 0xFE and 0xFF. not sure what they are supposed to be. */
 
         default:
@@ -808,6 +814,25 @@ void sb_ct1745_mixer_reset(sb_t *sb) {
         sb->mixer_sb16.surround = 0;
         sb->mixer_sb16.regs[0x48] = 0;
         sb->mixer_sb16.regs[0x90] = 0;
+}
+
+int sb_ct1745_mixer_detect(sb_t *sb) {
+        sb_ct1745_mixer_t *mixer = &sb->mixer_sb16;
+
+        uint8_t saved_index = mixer->index;
+        sb_ct1745_mixer_write(4, 0x83, sb);
+        uint8_t saved_83 = sb_ct1745_mixer_read(5, sb);
+
+        /* emulate CSP.SYS detection sequence on mixer register 0x83 */
+        sb_ct1745_mixer_write(5, 0xaa, sb);
+        int detected = (sb_ct1745_mixer_read(5, sb) == 0xaa);
+        sb_ct1745_mixer_write(5, 0x55, sb);
+        detected &= (sb_ct1745_mixer_read(5, sb) == 0x55);
+
+        sb_ct1745_mixer_write(5, saved_83, sb);
+        mixer->index = saved_index;
+
+        return detected;
 }
 
 static uint16_t sb_mcv_addr[8] = {0x200, 0x210, 0x220, 0x230, 0x240, 0x250, 0x260, 0x270};
@@ -1084,6 +1109,7 @@ void *sb_16_init() {
         sb_dsp_setaddr(&sb->dsp, addr);
         // TODO: irq and dma options too?
         sb_ct1745_mixer_reset(sb);
+        sb_ct1745_mixer_detect(sb);
         io_sethandler(addr, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(addr + 8, 0x0002, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(0x0388, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
@@ -1109,6 +1135,7 @@ void *sb_awe32_init() {
         sb_dsp_setaddr(&sb->dsp, addr);
         // TODO: irq and dma options too?
         sb_ct1745_mixer_reset(sb);
+        sb_ct1745_mixer_detect(sb);
         io_sethandler(addr, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(addr + 8, 0x0002, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(0x0388, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
