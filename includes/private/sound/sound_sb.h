@@ -118,4 +118,6 @@ void sb_close(void *p);
 void sb_speed_changed(void *p);
 void sb_add_status_info(char *s, int max_len, void *p);
 
+int sb_ct1745_mixer_detect(sb_t *sb);
+
 #endif /* SOUND_SB_H */
