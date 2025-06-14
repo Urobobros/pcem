@@ -14,7 +14,7 @@
 
 #include "filters.h"
 
-//#define SB_DSP_RECORD_DEBUG
+// #define SB_DSP_RECORD_DEBUG
 
 #ifdef SB_DSP_RECORD_DEBUG
 FILE *soundfsb = 0 /*NULL*/;
@@ -33,6 +33,14 @@ const int32_t sb_att_2dbstep_5bits[] = {25,   32,   41,   51,   65,    82,    10
                                         4125, 5192, 6537, 8230, 10362, 13044, 16422, 20674, 26027, 32767};
 const int32_t sb_att_4dbstep_3bits[] = {164, 2067, 3276, 5193, 8230, 13045, 20675, 32767};
 const int32_t sb_att_7dbstep_2bits[] = {164, 6537, 14637, 32767};
+
+static inline void sb_apply_surround(sb_ct1745_mixer_t *mixer, int32_t *l, int32_t *r) {
+        if (!mixer->surround)
+                return;
+        int32_t mix = ((*l - *r) * mixer->surround) >> 4;
+        *l += mix;
+        *r -= mix;
+}
 
 /* sb 1, 1.5, 2, 2 mvc do not have a mixer, so signal is hardwired */
 static void sb_get_buffer_sb2(int32_t *buffer, int len, void *p) {
@@ -177,6 +185,8 @@ static void sb_get_buffer_sb16(int32_t *buffer, int len, void *p) {
                                 out_r = (int32_t)((out_r)*sb_bass_treble_4bits[mixer->treble_r] +
                                                   high_cut_iir(1, (float)out_r) * (1.f - sb_bass_treble_4bits[mixer->treble_r]));
                 }
+
+                sb_apply_surround(mixer, &out_l, &out_r);
                 if (sb->dsp.sb_enable_i) {
                         int c_record = dsp_rec_pos;
                         c_record += (((c / 2) * sb->dsp.sb_freq) / 48000) * 2;
@@ -269,6 +279,8 @@ static void sb_get_buffer_emu8k(int32_t *buffer, int len, void *p) {
                                 out_r = (int32_t)(out_r * sb_bass_treble_4bits[mixer->treble_r] +
                                                   high_cut_iir(1, (float)out_r) * (1.f - sb_bass_treble_4bits[mixer->treble_r]));
                 }
+
+                sb_apply_surround(mixer, &out_l, &out_r);
                 if (sb->dsp.sb_enable_i) {
                         //                      in_l += (mixer->input_selector_left&INPUT_CD_L) ?
                         //                      audio_cd_buffer[cd_read_pos+c_emu8k] : 0 + (mixer->input_selector_left&INPUT_CD_R)
@@ -570,6 +582,7 @@ void sb_ct1745_mixer_write(uint16_t addr, uint8_t val, void *p) {
 
                         mixer->regs[0x44] = mixer->regs[0x45] = 8 << 4;
                         mixer->regs[0x46] = mixer->regs[0x47] = 8 << 4;
+                        mixer->regs[0x48] = 0;
 
                         mixer->regs[0x43] = 0;
                 } else {
@@ -599,6 +612,13 @@ void sb_ct1745_mixer_write(uint16_t addr, uint8_t val, void *p) {
                         break;
                 case 0x0A:
                         mixer->regs[0x3A] = (mixer->regs[0x0A] * 3) + 10;
+                        break;
+                case 0x48:
+                        mixer->surround = val & 0x0F;
+                        break;
+                case 0x90:
+                        /* Creative CT3DSE utility toggles this register */
+                        mixer->surround = val & 0x0F;
                         break;
 
                         /*
@@ -663,6 +683,7 @@ void sb_ct1745_mixer_write(uint16_t addr, uint8_t val, void *p) {
                 mixer->bass_r = mixer->regs[0x47] >> 4;
                 mixer->treble_l = mixer->regs[0x44] >> 4;
                 mixer->treble_r = mixer->regs[0x45] >> 4;
+                mixer->surround = mixer->regs[0x48] & 0x0F;
 
                 /*TODO: pcspeaker volume, with "output_selector" check? or better not? */
                 sound_set_cd_volume(((uint32_t)mixer->master_l * (uint32_t)mixer->cd_l) / 65535,
@@ -706,6 +727,8 @@ uint8_t sb_ct1745_mixer_read(uint16_t addr, void *p) {
                 // Undocumented. The Creative Windows Mixer calls this after calling 3C (input selector). even when writing.
                 // Also, the version I have (5.17) does not use the MIDI.L/R input selectors. it uses the volume to mute
                 // (Affecting the output, obviously)
+                return mixer->regs[mixer->index];
+        case 0x90:
                 return mixer->regs[mixer->index];
 
         case 0x80:
@@ -782,6 +805,9 @@ uint8_t sb_ct1745_mixer_read(uint16_t addr, void *p) {
 void sb_ct1745_mixer_reset(sb_t *sb) {
         sb_ct1745_mixer_write(4, 0, sb);
         sb_ct1745_mixer_write(5, 0, sb);
+        sb->mixer_sb16.surround = 0;
+        sb->mixer_sb16.regs[0x48] = 0;
+        sb->mixer_sb16.regs[0x90] = 0;
 }
 
 static uint16_t sb_mcv_addr[8] = {0x200, 0x210, 0x220, 0x230, 0x240, 0x250, 0x260, 0x270};
@@ -1349,4 +1375,6 @@ device_t sb_pro_mcv_device = {"Sound Blaster Pro MCV", DEVICE_MCA, sb_pro_mcv_in
 device_t sb_16_device = {"Sound Blaster 16", 0,    sb_16_init,         sb_close,    NULL,
                          sb_speed_changed,   NULL, sb_add_status_info, sb_16_config};
 device_t sb_awe32_device = {"Sound Blaster AWE32", 0,    sb_awe32_init,      sb_awe32_close, sb_awe32_available,
+                            sb_speed_changed,      NULL, sb_add_status_info, sb_awe32_config};
+device_t sb_awe64_device = {"Sound Blaster AWE64", 0,    sb_awe32_init,      sb_awe32_close, sb_awe32_available,
                             sb_speed_changed,      NULL, sb_add_status_info, sb_awe32_config};

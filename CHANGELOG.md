@@ -2,6 +2,7 @@
 ## Changes in v18
 - PCAP Support is now both Windows and Linux
 - Numerous bugfixes in this build
+- Added support for CT3DSE's 3D Stereo register (0x90)
 - Changed some GUI elements.
 - Preliminary Plugin Extensions Created
 - Added RAM disk preloaded with RAW/VHD images (*.rdimg;*.rdvhd)
@@ -167,6 +168,7 @@
 - WinChip emulation (including MMX emulation)
 - New graphics cards - S3 Trio64, Trident TGUI9440AGi, ATI VGA Edge-16, ATI VGA Charger, OAK OTI-067, ATI Mach64
 - New sound cards - Adlib Gold, Windows Sound System, SB AWE32
+- New sound cards - SB AWE64 (uses AWE32 core)
 - Improved GUS emulation
 - MPU-401 emulation (UART mode only) on SB16 and AWE32
 - Fixed DMA bug, floppy drives work properly in Windows 3.x
