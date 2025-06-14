@@ -810,6 +810,26 @@ void sb_ct1745_mixer_reset(sb_t *sb) {
         sb->mixer_sb16.regs[0x90] = 0;
 }
 
+int sb_ct1745_mixer_detect(sb_t *sb) {
+        sb_ct1745_mixer_t *mixer = &sb->mixer_sb16;
+
+        uint8_t saved_index = mixer->index;
+        uint8_t saved_val = mixer->regs[0x80];
+
+        sb_ct1745_mixer_write(0, 0, sb);
+
+        sb_ct1745_mixer_write(0x80, 0x55, sb);
+        uint8_t r1 = sb_ct1745_mixer_read(0x80, sb);
+
+        sb_ct1745_mixer_write(0x80, 0xAA, sb);
+        uint8_t r2 = sb_ct1745_mixer_read(0x80, sb);
+
+        sb_ct1745_mixer_write(0x80, saved_val, sb);
+        mixer->index = saved_index;
+
+        return (r1 == 0x55) && (r2 == 0xAA);
+}
+
 static uint16_t sb_mcv_addr[8] = {0x200, 0x210, 0x220, 0x230, 0x240, 0x250, 0x260, 0x270};
 
 uint8_t sb_mcv_read(int port, void *p) {
@@ -1084,6 +1104,7 @@ void *sb_16_init() {
         sb_dsp_setaddr(&sb->dsp, addr);
         // TODO: irq and dma options too?
         sb_ct1745_mixer_reset(sb);
+        sb_ct1745_mixer_detect(sb);
         io_sethandler(addr, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(addr + 8, 0x0002, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(0x0388, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
@@ -1109,6 +1130,7 @@ void *sb_awe32_init() {
         sb_dsp_setaddr(&sb->dsp, addr);
         // TODO: irq and dma options too?
         sb_ct1745_mixer_reset(sb);
+        sb_ct1745_mixer_detect(sb);
         io_sethandler(addr, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(addr + 8, 0x0002, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
         io_sethandler(0x0388, 0x0004, opl3_read, NULL, NULL, opl3_write, NULL, NULL, &sb->opl);
