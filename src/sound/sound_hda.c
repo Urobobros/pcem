@@ -29,6 +29,8 @@
  * the guest can feed real PCM samples.
  */
 
+#define HDA_NUM_NODES 7
+
 typedef struct hda_state_t {
         uint8_t pci_command;
         uint32_t bar0;
@@ -93,7 +95,52 @@ typedef struct hda_state_t {
         /* Simple beep generator */
         uint8_t  beep;
         double   beep_phase;
+
+        uint8_t  node_power[HDA_NUM_NODES];
+        uint8_t  pin_widget_ctrl[HDA_NUM_NODES];
+        uint8_t  eapd_ctrl[HDA_NUM_NODES];
+        uint8_t  stream_tag[HDA_NUM_NODES];
+        uint8_t  channel_id[HDA_NUM_NODES];
+        uint16_t stream_format[HDA_NUM_NODES];
+        uint8_t  amp_gain_left[HDA_NUM_NODES];
+        uint8_t  amp_gain_right[HDA_NUM_NODES];
+        uint8_t  amp_mute_left[HDA_NUM_NODES];
+        uint8_t  amp_mute_right[HDA_NUM_NODES];
 } hda_state_t;
+
+static const uint32_t hda_widget_caps[HDA_NUM_NODES] = {
+        0, 0,
+        0x0000001d, /* DAC */
+        0x00200107, /* Mixer */
+        0x00400101, /* Line-out pin */
+        0x0010011b, /* ADC */
+        0x00400001  /* Line-in pin */
+};
+
+static const uint32_t hda_pin_caps[HDA_NUM_NODES] = {
+        0, 0, 0, 0, 0x10, 0, 0x20
+};
+
+static const uint8_t hda_conn_len[HDA_NUM_NODES] = {
+        0, 4, 1, 1, 1, 1, 1
+};
+
+static const uint8_t hda_conn_list[HDA_NUM_NODES][4] = {
+        {0},
+        {2,3,4,5},
+        {3},
+        {4},
+        {2},
+        {6},
+        {5}
+};
+
+static const uint32_t hda_cfg_default[HDA_NUM_NODES] = {
+        0, 0, 0, 0,
+        0x10a60150, /* line-out */
+        0,
+        0x90a60160  /* mic */
+};
 
 /* Offsets for our very small register set */
 #define HDA_REG_GCAP   0x00
@@ -558,14 +605,136 @@ static void hda_fill_capture(hda_state_t *hda) {
 }
 #endif
 
-static uint32_t hda_handle_verb(uint32_t verb)
+static uint32_t hda_handle_verb(hda_state_t *hda, uint32_t verb)
 {
-        uint16_t cmd = (verb >> 8) & 0xfff;
-        uint8_t parm = verb & 0xff;
+        uint8_t  node = (verb >> 20) & 0xff;
+        uint16_t cmd  = (verb >> 8) & 0xfff;
+        uint16_t parm = verb & 0xffff;
 
-        if (cmd == HDA_VERB_GET_PARAMETER) {
-                if (parm == HDA_PAR_VENDOR_ID)
+        switch (cmd) {
+        case HDA_VERB_GET_PARAMETER:
+                switch (parm) {
+                case HDA_PAR_VENDOR_ID:
                         return 0x80862880; /* Intel */
+                case HDA_PAR_SUBSYSTEM_ID:
+                        return 0x80862880; /* Dummy subsystem */
+                case HDA_PAR_NODE_COUNT:
+                        if (node == 0)
+                                return 0x00020005; /* nodes 02-06 */
+                        if (node == 1)
+                                return 0x00020004; /* nodes 02-06 */
+                        break;
+                case HDA_PAR_AUDIO_WIDGET_CAP:
+                        if (node < HDA_NUM_NODES)
+                                return hda_widget_caps[node];
+                        break;
+                case HDA_PAR_PIN_CAP:
+                        if (node < HDA_NUM_NODES)
+                                return hda_pin_caps[node];
+                        break;
+                case HDA_PAR_CONNLIST_LEN:
+                        if (node < HDA_NUM_NODES)
+                                return hda_conn_len[node];
+                        break;
+                case HDA_PAR_AMP_IN_CAP:
+                case HDA_PAR_AMP_OUT_CAP:
+                        if (node < HDA_NUM_NODES)
+                                return 0x80034a4a; /* simple amp */
+                        break;
+                default:
+                        break;
+                }
+                break;
+        case HDA_VERB_GET_POWER_STATE:
+                if (node < HDA_NUM_NODES)
+                        return hda->node_power[node];
+                break;
+        case HDA_VERB_SET_POWER_STATE:
+                if (node < HDA_NUM_NODES) {
+                        hda->node_power[node] = parm & 0xf;
+                        return 0;
+                }
+                break;
+        case HDA_VERB_GET_PIN_WIDGET_CONTROL:
+                if (node < HDA_NUM_NODES)
+                        return hda->pin_widget_ctrl[node];
+                break;
+        case HDA_VERB_SET_PIN_WIDGET_CONTROL:
+                if (node < HDA_NUM_NODES) {
+                        hda->pin_widget_ctrl[node] = parm;
+                        return 0;
+                }
+                break;
+        case HDA_VERB_GET_EAPD_BTLENABLE:
+                if (node < HDA_NUM_NODES)
+                        return hda->eapd_ctrl[node];
+                break;
+        case HDA_VERB_SET_EAPD_BTLENABLE:
+                if (node < HDA_NUM_NODES) {
+                        hda->eapd_ctrl[node] = parm & 0xff;
+                        return 0;
+                }
+                break;
+        case HDA_VERB_GET_PIN_SENSE:
+                return 0; /* No jack sense */
+        case HDA_VERB_GET_CONFIG_DEFAULT:
+                if (node < HDA_NUM_NODES)
+                        return hda_cfg_default[node];
+                break;
+        case HDA_VERB_GET_CONN_LIST:
+                if (node < HDA_NUM_NODES) {
+                        uint32_t resp = 0;
+                        for (int i = 0; i < 4 && i < hda_conn_len[node]; i++)
+                                resp |= hda_conn_list[node][i] << (i * 8);
+                        return resp;
+                }
+                break;
+        case HDA_VERB_SET_CHANNEL_STREAMID:
+                if (node < HDA_NUM_NODES) {
+                        hda->stream_tag[node] = (parm >> 4) & 0xf;
+                        hda->channel_id[node] = parm & 0xf;
+                        return 0;
+                }
+                break;
+        case HDA_VERB_GET_CONV:
+                if (node < HDA_NUM_NODES)
+                        return (hda->stream_tag[node] << 4) | hda->channel_id[node];
+                break;
+        case HDA_VERB_SET_STREAM_FORMAT:
+                if (node < HDA_NUM_NODES) {
+                        hda->stream_format[node] = parm;
+                        return 0;
+                }
+                break;
+        case HDA_VERB_GET_STREAM_FORMAT:
+                if (node < HDA_NUM_NODES)
+                        return hda->stream_format[node];
+                break;
+        case HDA_VERB_GET_AMP_GAIN_MUTE:
+                if (node < HDA_NUM_NODES) {
+                        if (parm & HDA_AMP_GET_LEFT)
+                                return hda->amp_gain_left[node] |
+                                       (hda->amp_mute_left[node] ? HDA_AMP_MUTE : 0);
+                        else
+                                return hda->amp_gain_right[node] |
+                                       (hda->amp_mute_right[node] ? HDA_AMP_MUTE : 0);
+                }
+                break;
+        case HDA_VERB_SET_AMP_GAIN_MUTE:
+                if (node < HDA_NUM_NODES) {
+                        if (parm & HDA_AMP_SET_LEFT) {
+                                hda->amp_gain_left[node] = parm & HDA_AMP_GAIN;
+                                hda->amp_mute_left[node] = parm & HDA_AMP_MUTE ? 1 : 0;
+                        }
+                        if (parm & HDA_AMP_SET_RIGHT) {
+                                hda->amp_gain_right[node] = parm & HDA_AMP_GAIN;
+                                hda->amp_mute_right[node] = parm & HDA_AMP_MUTE ? 1 : 0;
+                        }
+                        return 0;
+                }
+                break;
+        default:
+                break;
         }
 
         return 0;
@@ -580,7 +749,7 @@ static void hda_process_corb(hda_state_t *hda)
                 hda->corb_rp = (hda->corb_rp + 1) & 0xff;
                 uint64_t addr = ((uint64_t)hda->corb_ubase << 32) | hda->corb_lbase;
                 uint32_t verb = mem_readl_phys(addr + 4 * hda->corb_rp);
-                uint32_t resp = hda_handle_verb(verb);
+                uint32_t resp = hda_handle_verb(hda, verb);
 
                 addr = ((uint64_t)hda->rirb_ubase << 32) | hda->rirb_lbase;
                 hda->rirb_wp = (hda->rirb_wp + 1) & 0xff;
@@ -714,6 +883,21 @@ static void *hda_init() {
 
        hda->beep = 0;
        hda->beep_phase = 0.0;
+
+       for (int i = 0; i < HDA_NUM_NODES; i++) {
+               hda->node_power[i] = HDA_STATE_D3;
+               hda->pin_widget_ctrl[i] = 0;
+               hda->eapd_ctrl[i] = 0;
+               hda->stream_tag[i] = 0;
+               hda->channel_id[i] = 0;
+               hda->stream_format[i] = 0;
+               hda->amp_gain_left[i] = 0x4a;
+               hda->amp_gain_right[i] = 0x4a;
+               hda->amp_mute_left[i] = 0;
+               hda->amp_mute_right[i] = 0;
+       }
+       hda->node_power[0] = HDA_STATE_D0;
+       hda->node_power[1] = HDA_STATE_D0;
 
         hda->cap_bdl_addr = 0;
         hda->cap_lvi = 0;
