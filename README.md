@@ -20,6 +20,16 @@ You will need the following libraries and buildtools (and their dependencies):
 - CMake
 - Ninja (Recommended, but you can use a Makefile generator if you prefer)
 
+You can install these dependencies automatically on most systems using the
+provided `install-deps.sh` script.  Package names can differ between
+distributions (for example Debian uses `libwxgtk3.0-gtk3-dev`).  The
+`install-deps.sh` script attempts to handle the common variants.  The
+`build.sh` helper runs it for you and then compiles PCem.  To perform a
+full build in one step run:
+```sh
+./build.sh
+```
+
 Open a terminal window, navigate to the PCem directory then enter:
 ### Linux/BSD
 ```
@@ -384,6 +394,15 @@ Hardware | Notes
 <b>Aztech Sound Galaxy Pro 16 AB (Washington)</b> | SB compatible + WSS compatible
 <b>Innovation SSI-2001</b> | SID6581. Emulated using resid-fp. Board is fixed to port 280.
 <b>Ensoniq AudioPCI (ES1371)<br/>Sound Blaster PCI 128</b> | Basic PCI sound card. Emulates Sound Blaster in software.
+<b>Intel High Definition Audio (HDA)</b> | Experimental port from QEMU. Implements
+a minimal buffer descriptor list engine with interrupt-driven playback and a
+simple capture stream. DMA position registers let guests poll playback and
+record progress. Basic global control and status registers allow operating
+systems to reset the device. A tiny CORB/RIRB handler lets drivers query the
+codec vendor ID. Captured audio now comes from the host microphone.
+System beeps play through a simple register-controlled generator.
+Basic power state transitions now let guests put the controller to sleep and receive wake events when it powers back up.
+Two playback streams allow basic mixing by the guest.
 
 ### Additional Notes
 <a name="sound-note-1">`[1]`</a> <b>Sound Blaster</b>: Several Sound Blasters are emulated.
