@@ -38,7 +38,7 @@ These notes should help continue the work without losing track of what remains.
 Even with microphone input and playback working, the experimental HDA device is far from feature complete.  The following larger tasks would bring the emulation closer to the QEMU implementation:
 
 9. ~~Support multiple PCM streams so guest operating systems can mix voices and perform full duplex playback.~~
-10. Emulate additional codec nodes (pin widgets, DACs, mixers) and implement a broader set of verbs.
+10. ~~Emulate additional codec nodes (pin widgets, DACs, mixers) and implement a broader set of verbs.~~
 11. ~~Hook up the beep generator and memory based descriptor ring so system beeps and DMA offload work correctly.~~
 12. ~~Implement power state transitions and wake events to better match real hardware behaviour.~~
 
