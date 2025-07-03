@@ -41,4 +41,9 @@ Even with microphone input and playback working, the experimental HDA device is 
 10. ~~Emulate additional codec nodes (pin widgets, DACs, mixers) and implement a broader set of verbs.~~
 11. ~~Hook up the beep generator and memory based descriptor ring so system beeps and DMA offload work correctly.~~
 12. ~~Implement power state transitions and wake events to better match real hardware behaviour.~~
+13. ~~Add support for unsolicited responses so events like beep updates can reach the guest driver.~~
+14. ~~Implement ring buffer interrupt count and overrun detection to better match QEMU's RIRB behaviour.~~
+15. ~~Expose the WALLCLK register so guests can read a 24 MHz timebase.~~
+16. ~~Implement the INTCTL and INTSTS registers so guests can mask and
+    acknowledge interrupts like with QEMU's model.~~
 

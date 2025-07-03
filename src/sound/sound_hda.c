@@ -77,6 +77,9 @@ typedef struct hda_state_t {
         uint32_t statests;
         uint32_t wakeen;
         uint8_t  pwr_state;
+        uint64_t wall_base;
+       uint32_t intctl;
+       uint32_t intsts;
 
         /* Minimal CORB/RIRB state for codec verbs */
         uint32_t corb_lbase;
@@ -89,8 +92,10 @@ typedef struct hda_state_t {
         uint32_t rirb_lbase;
         uint32_t rirb_ubase;
         uint8_t  rirb_wp;
+        uint8_t  rirb_cnt;
         uint8_t  rirb_ctl;
         uint8_t  rirb_sts;
+        uint8_t  rirb_count;
 
         /* Simple beep generator */
         uint8_t  beep;
@@ -147,25 +152,41 @@ static const uint32_t hda_cfg_default[HDA_NUM_NODES] = {
 #define HDA_REG_GCTL   0x08
 #define HDA_REG_WAKEEN 0x0c
 #define HDA_REG_STATESTS 0x0e
+#define HDA_REG_INTCTL 0x20
+#define HDA_REG_INTSTS 0x24
+#define HDA_REG_WALCLK 0x30
+
+#define HDA_GCTL_UNSOL (1 << 8)
 
 /* Minimal CORB / RIRB registers */
 #define HDA_REG_CORBLBASE 0x40
 #define HDA_REG_CORBUBASE 0x44
 #define HDA_REG_CORBWP    0x48
 #define HDA_REG_CORBRP    0x4a
+#define HDA_CORBRP_RST    0x8000
 #define HDA_REG_CORBCTL   0x4c
 #define HDA_REG_CORBSTS   0x4d
 #define HDA_REG_RIRBLBASE 0x50
 #define HDA_REG_RIRBUBASE 0x54
 #define HDA_REG_RIRBWP    0x58
+#define HDA_RIRBWP_RST    0x8000
+#define HDA_REG_RINTCNT   0x5a
 #define HDA_REG_RIRBCTL   0x5c
 #define HDA_REG_RIRBSTS   0x5d
+
+#define HDA_RIRBCTL_IRQ_EN     0x01
+#define HDA_RIRBCTL_DMA_EN     0x02
+#define HDA_RIRBCTL_OVERRUN_EN 0x04
+
+#define HDA_RIRBSTS_IRQ        0x01
+#define HDA_RIRBSTS_OVERRUN    0x04
 
 static void hda_process_corb(hda_state_t *hda);
 static void hda_raise_irq(hda_state_t *hda);
 static void hda_raise_irq2(hda_state_t *hda);
 static void hda_raise_cap_irq(hda_state_t *hda);
 static void hda_update_irq(hda_state_t *hda);
+static void hda_push_rirb(hda_state_t *hda, uint32_t resp, uint32_t ext, int solicited);
 
 #define HDA_REG_BEEP   0x70
 #define HDA_REG_BDLPL  0x100
@@ -205,6 +226,15 @@ static uint32_t hda_mmio_readl(uint32_t addr, void *p) {
                return hda->wakeen;
        case HDA_REG_STATESTS:
                return hda->statests;
+       case HDA_REG_INTCTL:
+               return hda->intctl;
+       case HDA_REG_INTSTS:
+               return hda->intsts;
+       case HDA_REG_WALCLK:
+               {
+                       uint64_t delta = timer_read() - hda->wall_base;
+                       return (uint32_t)((delta * 24000000ULL) / timer_freq);
+               }
        case HDA_REG_CORBLBASE:
                return hda->corb_lbase;
        case HDA_REG_CORBUBASE:
@@ -223,6 +253,8 @@ static uint32_t hda_mmio_readl(uint32_t addr, void *p) {
                return hda->rirb_ubase;
        case HDA_REG_RIRBWP:
                return hda->rirb_wp;
+       case HDA_REG_RINTCNT:
+               return hda->rirb_cnt;
        case HDA_REG_RIRBCTL:
                return hda->rirb_ctl;
        case HDA_REG_RIRBSTS:
@@ -300,6 +332,24 @@ static void hda_mmio_writel(uint32_t addr, uint32_t val, void *p) {
        case HDA_REG_STATESTS:
                hda->statests &= ~val;
                break;
+       case HDA_REG_INTCTL:
+               hda->intctl = val & 0xc00000ff;
+               hda_update_irq(hda);
+               break;
+       case HDA_REG_INTSTS:
+               if (val & 1)
+                       hda->irq_pending = 0;
+               if (val & 2)
+                       hda->irq_pending2 = 0;
+               if (val & 4)
+                       hda->cap_irq_pending = 0;
+               if (val & (1u << 30)) {
+                       hda->rirb_sts &= ~(HDA_RIRBSTS_IRQ | HDA_RIRBSTS_OVERRUN);
+                       hda->rirb_count = 0;
+                       hda_process_corb(hda);
+               }
+               hda_update_irq(hda);
+               break;
        case HDA_REG_WAKEEN:
                hda->wakeen = val;
                break;
@@ -373,7 +423,10 @@ static void hda_mmio_writel(uint32_t addr, uint32_t val, void *p) {
                hda_process_corb(hda);
                break;
        case HDA_REG_CORBRP:
-               hda->corb_rp = val & 0xff;
+               if (val & HDA_CORBRP_RST)
+                       hda->corb_rp = 0;
+               else
+                       hda->corb_rp = val & 0xff;
                break;
        case HDA_REG_CORBCTL:
                hda->corb_ctl = val & 0x03;
@@ -389,17 +442,30 @@ static void hda_mmio_writel(uint32_t addr, uint32_t val, void *p) {
                hda->rirb_ubase = val;
                break;
        case HDA_REG_RIRBWP:
-               hda->rirb_wp = val & 0xff;
+               if (val & HDA_RIRBWP_RST)
+                       hda->rirb_wp = 0;
+               else
+                       hda->rirb_wp = val & 0xff;
+               break;
+       case HDA_REG_RINTCNT:
+               hda->rirb_cnt = val & 0xff;
+               hda->rirb_count = 0;
                break;
        case HDA_REG_RIRBCTL:
-               hda->rirb_ctl = val & 0x03;
+               hda->rirb_ctl = val & 0x07;
                break;
        case HDA_REG_RIRBSTS:
                hda->rirb_sts &= ~val;
+               if (val & HDA_RIRBSTS_IRQ) {
+                       hda->rirb_count = 0;
+                       hda_process_corb(hda);
+               }
                break;
        case HDA_REG_BEEP:
                hda->beep = val & 0xff;
                hda->beep_phase = 0.0;
+               if (hda->gctl & HDA_GCTL_UNSOL)
+                       hda_push_rirb(hda, 0x80000000 | hda->beep, 0, 0);
                break;
        case HDA_REG_BDLPL2:
                hda->bdl_addr2 = (hda->bdl_addr2 & 0xffffffff00000000ULL) | val;
@@ -574,12 +640,27 @@ static void hda_raise_cap_irq(hda_state_t *hda) {
 }
 
 static void hda_update_irq(hda_state_t *hda) {
-        if ((hda->irq_enable && hda->irq_pending) ||
-            (hda->irq_enable2 && hda->irq_pending2) ||
-            (hda->cap_irq_enable && hda->cap_irq_pending))
-                pci_set_irq(hda->card, PCI_INTA);
-        else
-                pci_clear_irq(hda->card, PCI_INTA);
+       uint32_t sts = 0;
+
+       if (hda->rirb_sts & (HDA_RIRBSTS_IRQ | HDA_RIRBSTS_OVERRUN))
+               sts |= (1u << 30);
+       if (hda->statests & hda->wakeen)
+               sts |= (1u << 30);
+       if (hda->irq_pending)
+               sts |= 1;
+       if (hda->irq_pending2)
+               sts |= 2;
+       if (hda->cap_irq_pending)
+               sts |= 4;
+
+       if (sts & hda->intctl)
+               sts |= (1u << 31);
+       hda->intsts = sts;
+
+       if ((hda->intsts & (1u << 31)) && (hda->intctl & (1u << 31)))
+               pci_set_irq(hda->card, PCI_INTA);
+       else
+               pci_clear_irq(hda->card, PCI_INTA);
 }
 
 #ifdef USE_OPENAL
@@ -604,6 +685,36 @@ static void hda_fill_capture(hda_state_t *hda) {
         hda->cap_buf_len += avail;
 }
 #endif
+
+static void hda_push_rirb(hda_state_t *hda, uint32_t resp, uint32_t ext,
+                          int solicited)
+{
+        if (!(hda->rirb_ctl & HDA_RIRBCTL_DMA_EN))
+                return;
+
+        if (hda->rirb_count == hda->rirb_cnt) {
+                if (hda->rirb_ctl & HDA_RIRBCTL_OVERRUN_EN)
+                        hda->rirb_sts |= HDA_RIRBSTS_OVERRUN;
+                return;
+        }
+
+        uint64_t addr = ((uint64_t)hda->rirb_ubase << 32) | hda->rirb_lbase;
+        uint8_t wp = (hda->rirb_wp + 1) & 0xff;
+
+        mem_writel_phys(addr + 8 * wp, resp);
+        mem_writel_phys(addr + 8 * wp + 4,
+                        ext | (solicited ? 0 : (1 << 4)));
+
+        hda->rirb_wp = wp;
+        hda->rirb_count++;
+
+        if (hda->rirb_count == hda->rirb_cnt ||
+            ((hda->corb_rp & 0xff) == hda->corb_wp)) {
+                hda->rirb_sts |= HDA_RIRBSTS_IRQ;
+                if (hda->rirb_ctl & HDA_RIRBCTL_IRQ_EN)
+                        hda_raise_irq(hda);
+        }
+}
 
 static uint32_t hda_handle_verb(hda_state_t *hda, uint32_t verb)
 {
@@ -675,12 +786,18 @@ static uint32_t hda_handle_verb(hda_state_t *hda, uint32_t verb)
                         return 0;
                 }
                 break;
-        case HDA_VERB_GET_PIN_SENSE:
-                return 0; /* No jack sense */
-        case HDA_VERB_GET_CONFIG_DEFAULT:
-                if (node < HDA_NUM_NODES)
-                        return hda_cfg_default[node];
-                break;
+       case HDA_VERB_SET_UNSOLICITED_ENABLE:
+               if (parm & 0x80)
+                       hda->gctl |= HDA_GCTL_UNSOL;
+               else
+                       hda->gctl &= ~HDA_GCTL_UNSOL;
+               return 0;
+       case HDA_VERB_GET_PIN_SENSE:
+               return 0; /* No jack sense */
+       case HDA_VERB_GET_CONFIG_DEFAULT:
+               if (node < HDA_NUM_NODES)
+                       return hda_cfg_default[node];
+               break;
         case HDA_VERB_GET_CONN_LIST:
                 if (node < HDA_NUM_NODES) {
                         uint32_t resp = 0;
@@ -733,9 +850,11 @@ static uint32_t hda_handle_verb(hda_state_t *hda, uint32_t verb)
                         return 0;
                 }
                 break;
-        default:
-                break;
-        }
+       case HDA_VERB_GET_UNSOLICITED_RESPONSE:
+               return 0;
+       default:
+               break;
+       }
 
         return 0;
 }
@@ -746,18 +865,14 @@ static void hda_process_corb(hda_state_t *hda)
                 return;
 
         while (hda->corb_rp != hda->corb_wp) {
+                if (hda->rirb_count == hda->rirb_cnt)
+                        break;
                 hda->corb_rp = (hda->corb_rp + 1) & 0xff;
                 uint64_t addr = ((uint64_t)hda->corb_ubase << 32) | hda->corb_lbase;
                 uint32_t verb = mem_readl_phys(addr + 4 * hda->corb_rp);
                 uint32_t resp = hda_handle_verb(hda, verb);
 
-                addr = ((uint64_t)hda->rirb_ubase << 32) | hda->rirb_lbase;
-                hda->rirb_wp = (hda->rirb_wp + 1) & 0xff;
-                mem_writel_phys(addr + 8 * hda->rirb_wp, resp);
-                mem_writel_phys(addr + 8 * hda->rirb_wp + 4, 0);
-                hda->rirb_sts |= 1;
-                if (hda->rirb_ctl & 1)
-                        hda_raise_irq(hda);
+                hda_push_rirb(hda, resp, 0, 1);
         }
 }
 
@@ -867,6 +982,9 @@ static void *hda_init() {
        hda->statests = 0;
        hda->wakeen = 0;
        hda->pwr_state = HDA_STATE_D0;
+       hda->wall_base = timer_read();
+       hda->intctl = 0;
+       hda->intsts = 0;
 
        hda->corb_lbase = 0;
        hda->corb_ubase = 0;
@@ -878,8 +996,10 @@ static void *hda_init() {
        hda->rirb_lbase = 0;
        hda->rirb_ubase = 0;
        hda->rirb_wp = 0xff;
+       hda->rirb_cnt = 1;
        hda->rirb_ctl = 0;
        hda->rirb_sts = 0;
+       hda->rirb_count = 0;
 
        hda->beep = 0;
        hda->beep_phase = 0.0;
