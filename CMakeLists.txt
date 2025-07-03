@@ -50,6 +50,9 @@ message("Plugin Support: ${PLUGIN_ENGINE}")
 option(USE_NETWORKING "Build PCem with networking support" ON)
 message("Networking Support: ${USE_NETWORKING}")
 
+option(USE_KVM "Build PCem with KVM support" OFF)
+message("KVM Support: ${USE_KVM}")
+
 if(USE_NETWORKING)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -std=gnu17")
         message("       Switching C to gnu17 to allow slirp to build")

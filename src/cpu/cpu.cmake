@@ -1,5 +1,6 @@
 set(PCEM_PRIVATE_API ${PCEM_PRIVATE_API}
         ${CMAKE_SOURCE_DIR}/includes/private/cpu/cpu.h
+        ${CMAKE_SOURCE_DIR}/includes/private/cpu/cpu_backend.h
         ${CMAKE_SOURCE_DIR}/includes/private/cpu/386_common.h
         ${CMAKE_SOURCE_DIR}/includes/private/cpu/386_ops.h
         ${CMAKE_SOURCE_DIR}/includes/private/cpu/8087.h
@@ -57,6 +58,7 @@ set(PCEM_SRC ${PCEM_SRC}
         cpu/386_dynarec.c
         cpu/386_dynarec_ops.c
         cpu/808x.c
+        cpu/cpu_backend.c
         cpu/cpu.c
         cpu/cpu_tables.c
         cpu/x86seg.c

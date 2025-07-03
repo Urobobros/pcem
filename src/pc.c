@@ -15,8 +15,12 @@
 #include "cdrom-ioctl.h"
 #include "cdrom-image.h"
 #include "cpu.h"
+#include "cpu_backend.h"
 #include "disc.h"
 #include "disc_img.h"
+#ifdef USE_KVM
+#include "kvm.h"
+#endif
 #include "mem.h"
 #include "x86_ops.h"
 #include "codegen.h"
@@ -201,8 +205,9 @@ void initpc(int argc, char *argv[]) {
                         printf("PCem command line options :\n\n");
                         printf("--config file.cfg - use given config file as initial configuration\n");
                         printf("--fullscreen      - start in fullscreen mode\n");
-                        printf("--load_drive_a file.img - load drive A: with the given disc image\n");
-                        printf("--load_drive_b file.img - load drive B: with the given disc image\n");
+                printf("--load_drive_a file.img - load drive A: with the given disc image\n");
+                printf("--load_drive_b file.img - load drive B: with the given disc image\n");
+                printf("--kvm             - enable experimental KVM backend\n");
                         exit(-1);
                 } else if (!strcasecmp(argv[c], "--fullscreen")) {
                         start_in_fullscreen = 1;
@@ -236,6 +241,8 @@ void initpc(int argc, char *argv[]) {
                         strncpy(discfns[1], argv[c + 1], 256);
                         c++;
                         override_drive_b = 1;
+                } else if (!strcasecmp(argv[c], "--kvm")) {
+                        cpu_use_kvm = 1;
                 }
         }
 
@@ -245,6 +252,8 @@ void initpc(int argc, char *argv[]) {
         pclog("Config loaded\n");
 
         load_plugins();
+
+        cpu_backend_init();
 
         //        if (config_file)
         //                saveconfig();
@@ -474,15 +483,7 @@ void runpc() {
 
         startblit();
 
-        if (is386) {
-                if (cpu_use_dynarec)
-                        exec386_dynarec(cycles_to_run);
-                else
-                        exec386(cycles_to_run);
-        } else if (AT)
-                exec386(cycles_to_run);
-        else
-                execx86(cycles_to_run);
+        cpu_backend_run(cycles_to_run);
 
         keyboard_poll_host();
         keyboard_process();
@@ -586,6 +587,7 @@ void closepc() {
         lpt1_device_close();
         mouse_emu_close();
         device_close_all();
+        cpu_backend_shutdown();
         zip_eject();
 }
 
@@ -653,6 +655,7 @@ void loadconfig(char *fn) {
         p = (char *)config_get_string(CFG_MACHINE, NULL, "fpu", "none");
         fpu_type = fpu_get_type(model, cpu_manufacturer, cpu, p);
         cpu_use_dynarec = config_get_int(CFG_MACHINE, NULL, "cpu_use_dynarec", 0);
+        cpu_use_kvm = config_get_int(CFG_MACHINE, NULL, "cpu_use_kvm", 0);
         cpu_waitstates = config_get_int(CFG_MACHINE, NULL, "cpu_waitstates", 0);
 
         p = (char *)config_get_string(CFG_MACHINE, NULL, "gfxcard", "");
@@ -866,6 +869,7 @@ void saveconfig(char *fn) {
         config_set_int(CFG_MACHINE, NULL, "cpu", cpu);
         config_set_string(CFG_MACHINE, NULL, "fpu", (char *)fpu_get_internal_name(model, cpu_manufacturer, cpu, fpu_type));
         config_set_int(CFG_MACHINE, NULL, "cpu_use_dynarec", cpu_use_dynarec);
+        config_set_int(CFG_MACHINE, NULL, "cpu_use_kvm", cpu_use_kvm);
         config_set_int(CFG_MACHINE, NULL, "cpu_waitstates", cpu_waitstates);
 
         config_set_string(CFG_MACHINE, NULL, "gfxcard", video_get_internal_name(video_old_to_new(gfxcard)));
