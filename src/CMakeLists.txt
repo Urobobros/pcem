@@ -22,6 +22,8 @@ set(PCEM_PRIVATE_API ${PCEM_PRIVATE_API}
         ${CMAKE_SOURCE_DIR}/includes/private/scamp.h
         ${CMAKE_SOURCE_DIR}/includes/private/thread.h
         ${CMAKE_SOURCE_DIR}/includes/private/timer.h
+        ${CMAKE_SOURCE_DIR}/includes/private/cpu_backend.h
+        ${CMAKE_SOURCE_DIR}/includes/private/whpx.h
         )
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/bus/bus.cmake)
@@ -61,6 +63,7 @@ set(PCEM_SRC ${PCEM_SRC}
         fdi2raw.c
         io.c
         mcr.c
+        cpu_backend.c
         pc.c
         ppi.c
         pzx.c
@@ -68,6 +71,12 @@ set(PCEM_SRC ${PCEM_SRC}
         rtc_tc8521.c
         timer.c
         )
+
+if(USE_WHPX)
+        set(PCEM_SRC ${PCEM_SRC} whpx.c)
+        set(PCEM_DEFINES ${PCEM_DEFINES} USE_WHPX)
+        set(PCEM_ADDITIONAL_LIBS ${PCEM_ADDITIONAL_LIBS} WinHvPlatform)
+endif()
 
 set(PCEM_LIBRARIES ${DISPLAY_ENGINE_LIBRARIES} ${SDL2_LIBRARIES} ${OPENAL_LIBRARY} ${OPENGL_LIBRARIES} ${PCEM_ADDITIONAL_LIBS})
 

@@ -61,6 +61,9 @@ message("Plugin Support: ${PLUGIN_ENGINE}")
 option(USE_NETWORKING "Build PCem with networking support" ON)
 message("Networking Support: ${USE_NETWORKING}")
 
+option(USE_WHPX "Enable Windows Hypervisor Platform support" OFF)
+message("WHPX Support: ${USE_WHPX}")
+
 if(USE_NETWORKING)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -std=gnu17")
         message("       Switching C to gnu17 to allow slirp to build")
@@ -146,6 +149,12 @@ include(${CMAKE_SOURCE_DIR}/cmake/apple.cmake)
 
 find_package(OpenAL REQUIRED)
 include_directories(${OPENAL_INCLUDE_DIR})
+
+if(USE_WHPX)
+    if(NOT WIN32)
+        message(FATAL_ERROR "WHPX is only supported on Windows hosts")
+    endif()
+endif()
 
 if(${PCEM_DISPLAY_ENGINE} STREQUAL "wxWidgets")
         find_package(wxWidgets REQUIRED COMPONENTS core base xrc adv)

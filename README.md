@@ -19,6 +19,7 @@ You will need the following libraries and buildtools (and their dependencies):
 - OpenAL
 - CMake
 - Ninja (Recommended, but you can use a Makefile generator if you prefer)
+- Optional: Windows Hypervisor Platform (WHPX) SDK for acceleration
 
 Open a terminal window, navigate to the PCem directory then enter:
 ### Linux/BSD
