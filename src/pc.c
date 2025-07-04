@@ -59,6 +59,7 @@
 #include "amstrad.h"
 #include "hdd.h"
 #include "x86.h"
+#include "cpu_backend.h"
 #include "paths.h"
 #include "plugin.h"
 #include "viewer.h"
