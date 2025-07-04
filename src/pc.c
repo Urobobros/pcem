@@ -52,6 +52,7 @@
 #include "hdd.h"
 #include "x86.h"
 #include "paths.h"
+#include "cpu_backend.h"
 
 #ifdef USE_NETWORKING
 #include "nethandler.h"
@@ -233,6 +234,7 @@ void initpc(int argc, char *argv[])
         //char *p;
 //        char *config_file = NULL;
         int c;
+        cpu_backend_init();
 
         for (c = 1; c < argc; c++)
         {
@@ -407,6 +409,7 @@ void resetpchard()
         io_init();
         cpu_set();
         mem_alloc();
+        cpu_backend_memory_init();
         fdc_init();
 	disc_reset();
         disc_load(0, discfns[0]);
@@ -517,17 +520,7 @@ void runpc()
 
         startblit();
         
-        if (is386)   
-        {
-                if (cpu_use_dynarec)
-                        exec386_dynarec(cycles_to_run);
-                else
-                        exec386(cycles_to_run);
-        }
-        else if (AT)
-                exec386(cycles_to_run);
-        else
-                execx86(cycles_to_run);
+        cpu_backend_exec(cycles_to_run);
         
         keyboard_poll_host();
         keyboard_process();

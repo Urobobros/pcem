@@ -13,6 +13,14 @@ Changes since v13.1:
 - Iomega Zip drive emulation
 - Added option for default video timing
 - Added dynamic low-pass filter for SB16/AWE32 DSP playback
+- Preliminary support for Windows Hypervisor Platform (WHPX) acceleration
+- Initial WHPX virtual CPU stub now runs through the backend
+- Basic partition setup and memory mapping for WHPX
+- WHPX run loop now synchronizes basic CPU registers
+- Handles WHPX exits and falls back to the interpreter when needed
+- Synchronizes segment registers when entering and leaving WHPX
+- When compiled with --enable-whpx, the emulator now automatically
+  uses the WHPX backend and falls back to the interpreter on errors
 - Can select external video card on some systems with built-in video
 - Can use IDE hard drives up to 127 GB
 - Can now use 7 SCSI devices

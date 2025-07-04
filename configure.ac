@@ -54,6 +54,20 @@ else
    AC_MSG_RESULT([no])
 fi
 
+AC_MSG_CHECKING([whether to enable WHPX acceleration])
+AC_ARG_ENABLE(whpx,
+          AC_HELP_STRING([--enable-whpx], [enable Windows Hypervisor Platform support]))
+if test "$enable_whpx" = "yes"; then
+   AC_MSG_RESULT([yes])
+   AC_CHECK_HEADER([WinHvPlatform.h],
+       [AC_DEFINE([USE_WHPX],[1],[Enable WHPX])
+        LIBS="$LIBS -lWinHvPlatform"],
+       [AC_MSG_ERROR([WinHvPlatform headers not found])])
+else
+   AC_MSG_RESULT([no])
+fi
+AM_CONDITIONAL(USE_WHPX, [test "$enable_whpx" = "yes"])
+
 AC_MSG_CHECKING([for cpu])
 case "${host_cpu}" in
     i?86)

@@ -128,6 +128,9 @@ DEFAULT_INCLUDES = -I.@am__isrc@
 #pcem_CFLAGS += -Doff64_t=off_t -Dfopen64=fopen -Dfseeko64=fseek -Dftello64=ftell
 @RELEASE_BUILD_TRUE@am__append_22 = -DRELEASE_BUILD
 @RELEASE_BUILD_TRUE@am__append_23 = -DRELEASE_BUILD
+@USE_WHPX_TRUE@am__append_24 = whpx.c
+@USE_WHPX_TRUE@am__append_25 = -DUSE_WHPX
+@USE_WHPX_TRUE@am__append_26 = -lWinHvPlatform
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -145,7 +148,7 @@ am__pcem_SOURCES_DIST = 386.c 386_dynarec.c 386_dynarec_ops.c 808x.c \
 	codegen_backend.c codegen_ir.c codegen_timing_486.c \
 	codegen_timing_686.c codegen_timing_common.c \
 	codegen_timing_pentium.c codegen_timing_winchip.c compaq.c \
-	config.c cpu.c dells200.c device.c disc.c disc_fdi.c \
+        config.c cpu.c cpu_backend.c dells200.c device.c disc.c disc_fdi.c \
 	disc_img.c disc_sector.c dma.c esdi_at.c fdc.c fdc37c665.c \
 	fdd.c fdi2raw.c gameport.c hdd.c hdd_esdi.c hdd_file.c \
 	headland.c i430lx.c i430fx.c i430vx.c ide.c ide_atapi.c \
@@ -772,7 +775,7 @@ pcem_SOURCES = 386.c 386_dynarec.c 386_dynarec_ops.c 808x.c acc2036.c \
 	cdrom-null.c cmd640.c codegen.c codegen_backend.c codegen_ir.c \
 	codegen_timing_486.c codegen_timing_686.c \
 	codegen_timing_common.c codegen_timing_pentium.c \
-	codegen_timing_winchip.c compaq.c config.c cpu.c dells200.c \
+        codegen_timing_winchip.c compaq.c config.c cpu.c cpu_backend.c dells200.c \
 	device.c disc.c disc_fdi.c disc_img.c disc_sector.c dma.c \
 	esdi_at.c fdc.c fdc37c665.c fdd.c fdi2raw.c gameport.c hdd.c \
 	hdd_esdi.c hdd_file.c headland.c i430lx.c i430fx.c i430vx.c \
