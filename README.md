@@ -33,6 +33,11 @@ ninja
 cmake -G "Ninja" -DMSYS=TRUE -DCMAKE_BUILD_TYPE=Release .
 ninja
 ```
+To build with WHPX acceleration, pass `-DUSE_WHPX=ON` when configuring:
+```
+cmake -G "Ninja" -DMSYS=TRUE -DUSE_WHPX=ON -DCMAKE_BUILD_TYPE=Release .
+ninja
+```
 
 then `./src/pcem` to run.
 
@@ -50,7 +55,8 @@ default value.
   -DUSE_PCAP_NETWORKING=ON   : Build with pcap networking support. (Needs USE_NETWORKING to compile) Requires libpcap.
   -DUSE_ALSA=OFF             : Build with support for MIDI output through ALSA. Requires libasound. (Linux Only)
   -DFORCE_X11=ON             : Enables a hack to force X11 on Wayland systems. See #128 for details. (Linux Only)
-  -DPLUGIN_ENGINE=ON         : Build with plugin support. Builds libpcem-plugin-api and links PCem with it. 
+  -DPLUGIN_ENGINE=ON         : Build with plugin support. Builds libpcem-plugin-api and links PCem with it.
+  -DUSE_WHPX=OFF             : Enable Windows Hypervisor Platform acceleration. (Windows Only)
 ```
 
 If you are using -DCMAKE_BUILD_TYPE=Debug, there are some more debug options you can enable if needed
