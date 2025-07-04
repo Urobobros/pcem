@@ -1,4 +1,4 @@
-# [PCem](https://pcem-emulator.co.uk/)
+#[PCem](https:             //pcem-emulator.co.uk/)
 ![Test Debug Builds](https://github.com/sarah-walker-pcem/pcem/actions/workflows/test-debug-builds.yml/badge.svg)
 ![Test Release Builds](https://github.com/sarah-walker-pcem/pcem/actions/workflows/test-release-builds.yml/badge.svg)
 ## Download: [Windows](https://pcem-emulator.co.uk/files/PCemV17Win.zip)/[Linux](https://pcem-emulator.co.uk/files/PCemV17Linux.tar.gz)/[vNext (Wise Global Solutions Mirror)](https://mirror.wiseglobalsolutions.com/pcem/)
@@ -38,6 +38,8 @@ To build with WHPX acceleration, pass `-DUSE_WHPX=ON` when configuring:
 cmake -G "Ninja" -DMSYS=TRUE -DUSE_WHPX=ON -DCMAKE_BUILD_TYPE=Release .
 ninja
 ```
+When WHPX starts successfully the console will print `Using WHPX backend` and
+the window title will include `[WHPX]` after the CPU name.
 
 then `./src/pcem` to run.
 
