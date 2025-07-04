@@ -36,6 +36,7 @@
 #include "disc_img.h"
 #include "mem.h"
 #include "paths.h"
+#include "cpu_backend.h"
 
 #include "wx-sdl2-video.h"
 #include "wx-utils.h"
@@ -731,6 +732,7 @@ void reset_emulation()
 int wx_stop()
 {
         pclog("Shutting down...\n");
+        cpu_backend_shutdown();
         closepc();
         display_close();
         sdl_video_close();
