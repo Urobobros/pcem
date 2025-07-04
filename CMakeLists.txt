@@ -10,8 +10,18 @@ include(${CMAKE_SOURCE_DIR}/cmake/arch-detect.cmake)
 
 target_architecture(PCEM_CPU_TYPE)
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 -fomit-frame-pointer -fno-strict-aliasing -flto")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2 -fomit-frame-pointer -fno-strict-aliasing -flto")
+option(PCEM_USE_SAFE_OPTIMIZATION "Use safer optimization flags (-Og, no LTO)" ON)
+
+if (PCEM_USE_SAFE_OPTIMIZATION)
+    message(WARNING "Using safer optimization settings: -Og without LTO")
+    set(CMAKE_C_FLAGS_RELEASE "-Og -fomit-frame-pointer -fno-strict-aliasing")
+    set(CMAKE_CXX_FLAGS_RELEASE "-Og -fomit-frame-pointer -fno-strict-aliasing")
+else()
+    message(WARNING "Using aggressive optimization settings: -O3 with LTO")
+    set(CMAKE_C_FLAGS_RELEASE "-O3 -fomit-frame-pointer -fno-strict-aliasing -flto")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fomit-frame-pointer -fno-strict-aliasing -flto")
+endif()
+
 
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELEASE} -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -DDEBUG")
@@ -21,10 +31,11 @@ if(${PCEM_CPU_TYPE} STREQUAL "i386")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
 endif()
 
-if(NOT ${PCEM_CPU_TYPE} MATCHES "arm.*")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mstackrealign")
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mstackrealign")
-endif()
+# Turning this off, maybe this is whats causing issues as i noticed in an older build, 64-bit builds dont do stack realign
+#if(NOT ${PCEM_CPU_TYPE} MATCHES "arm.*")
+#        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mstackrealign")
+#        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mstackrealign")
+#endif()
 
 if (UNIX)
 	add_definitions(-D_FILE_OFFSET_BITS=64)
