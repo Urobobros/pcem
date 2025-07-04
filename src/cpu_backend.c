@@ -24,7 +24,7 @@ void cpu_backend_init(void)
 #endif
 }
 
-void cpu_backend_exec(int cycles)
+void cpu_backend_exec(int cycle_count)
 {
 #ifdef USE_WHPX
     if (cpu_backend == CPU_BACKEND_WHPX) {
@@ -39,14 +39,14 @@ void cpu_backend_exec(int cycles)
     if (is386)
     {
         if (cpu_use_dynarec)
-            exec386_dynarec(cycles);
+            exec386_dynarec(cycle_count);
         else
-            exec386(cycles);
+            exec386(cycle_count);
     }
     else if (AT)
-        exec386(cycles);
+        exec386(cycle_count);
     else
-        execx86(cycles);
+        execx86(cycle_count);
 }
 
 void cpu_backend_memory_init(void)

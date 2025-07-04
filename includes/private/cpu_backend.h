@@ -14,7 +14,7 @@ extern CPUBackend cpu_backend;
 
 void cpu_backend_set(CPUBackend backend);
 void cpu_backend_init(void);
-void cpu_backend_exec(int cycles);
+void cpu_backend_exec(int cycle_count);
 void cpu_backend_shutdown(void);
 void cpu_backend_memory_init(void);
 
