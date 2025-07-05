@@ -44,7 +44,9 @@ the hypervisor service can be accessed.
 When WHPX starts successfully the console will print `Using WHPX backend` and
 the window title will include `[WHPX]` after the CPU name.
 If initialization fails, detailed error messages are printed to help diagnose
-missing features or permissions.
+missing features or permissions. If `check-whpx` prints
+`WHvGetCapability failed: 0x80370301` your system likely lacks WHPX support or
+the feature is not installed.
 
 then `./src/pcem` to run.
 

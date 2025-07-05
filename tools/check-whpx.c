@@ -15,6 +15,10 @@ int main(void)
                           NULL);
     if (FAILED(hr)) {
         fprintf(stderr, "WHvGetCapability failed: 0x%lx\n", hr);
+#ifdef WHV_E_UNKNOWN_CAPABILITY
+        if (hr == WHV_E_UNKNOWN_CAPABILITY)
+            fprintf(stderr, "The installed Windows version does not support WHPX or the feature is missing.\n");
+#endif
         return 1;
     }
     if (!hypervisor_present) {
