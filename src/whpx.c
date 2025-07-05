@@ -97,6 +97,10 @@ int whpx_map_memory(void *mem, size_t size)
                                  WHvMapGpaRangeFlagExecute);
     if (FAILED(hr)) {
         pclog("whpx: WHvMapGpaRange failed: 0x%lx\n", hr);
+#ifdef E_INVALIDARG
+        if (hr == E_INVALIDARG)
+            pclog("whpx: buffer or size not 4 KB aligned or running 32-bit build\n");
+#endif
         return -1;
     }
     return 0;

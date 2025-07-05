@@ -70,6 +70,12 @@ int main(void)
                         WHvMapGpaRangeFlagExecute);
     if (FAILED(hr)) {
         fprintf(stderr, "WHvMapGpaRange failed: 0x%lx\n", hr);
+#ifdef E_INVALIDARG
+        if (hr == E_INVALIDARG)
+            fprintf(stderr, "Invalid mapping parameters. Make sure this"
+                            " program is built as 64-bit and uses 4 KB"
+                            " aligned memory.\n");
+#endif
         VirtualFree(ram, 0, MEM_RELEASE);
         WHvDeletePartition(partition);
         return 1;

@@ -49,6 +49,9 @@ If initialization fails, detailed error messages are printed to help diagnose
 missing features or permissions. If `check-whpx` prints
 `WHvGetCapability failed: 0x80370301` your system likely lacks WHPX support or
 the feature is not installed.
+If you instead see `WHvMapGpaRange failed: 0x80070057` your executable is
+probably 32-bit or the memory mapping is not 4 KB aligned. WHPX only works
+with 64-bit builds and requires addresses and sizes aligned to page boundaries.
 
 then `./src/pcem` to run.
 
