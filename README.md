@@ -43,6 +43,9 @@ the window title will include `[WHPX]` after the CPU name.
 
 then `./src/pcem` to run.
 
+On startup the emulator prints the location of the log file (usually
+`<pcem_path>/logs/pcem.log`) so you know where to find it.
+
 The Linux/BSD versions store BIOS ROM images, configuration files, and other data in `~/.pcem`
 
 You can specify the Display Engine using `-DPCEM_DISPLAY_ENGINE=` The only valid option you have at this time is

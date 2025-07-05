@@ -29,6 +29,9 @@ uint8_t pclog_start() {
                         fprintf(stderr, "Could not open log file for writing: %s", strerror(errno));
                         return 0;
                 }
+
+                fprintf(stdout, "Logging to %s\n", buf);
+                fprintf(pclogf, "Logging to %s\n", buf);
         }
         return 1;
 #else
