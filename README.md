@@ -39,8 +39,10 @@ cmake -G "Ninja" -DMSYS=TRUE -DUSE_WHPX=ON -DCMAKE_BUILD_TYPE=Release .
 ninja
 ```
 You can verify that WHPX is available on your system by building the `check-whpx`
-utility from the `tools` directory and running it. The program reports whether
-the hypervisor service can be accessed.
+utility from the `tools` directory and running it. The program sets up a minimal
+virtual machine with a HLT instruction at address 0 and initializes the CS and
+stack registers so the processor starts cleanly. It then reports whether the
+hypervisor service can be accessed and executes the test HLT instruction.
 When WHPX starts successfully the console will print `Using WHPX backend` and
 the window title will include `[WHPX]` after the CPU name. If WHPX is disabled or
 initialization fails, the window title shows `[WHPX NO]` so you can see that the

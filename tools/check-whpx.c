@@ -89,12 +89,33 @@ int main(void)
         return 1;
     }
 
-    WHV_REGISTER_NAME reg_name = WHvX64RegisterRip;
-    WHV_REGISTER_VALUE reg_val = {0};
-    /* Explicitly set RIP to 0 so the HLT at GPA 0 executes. */
-    reg_val.Reg64 = 0;
+    /*
+     * Initialize a minimal CPU state so WHPX can start execution. In
+     * addition to RIP we must provide a valid code segment and stack
+     * pointer. Without these the hypervisor stops the vCPU with a
+     * MemoryAccess exit before our HLT executes.
+     */
+    WHV_REGISTER_NAME reg_names[] = {
+        WHvX64RegisterRip,
+        WHvX64RegisterCs,
+        WHvX64RegisterRsp
+    };
+    WHV_REGISTER_VALUE reg_vals[3] = {0};
+
+    /* RIP starts at GPA 0 where we placed the HLT instruction. */
+    reg_vals[0].Reg64 = 0;
+
+    /* Minimal flat code segment descriptor. */
+    reg_vals[1].Segment.Base = 0;
+    reg_vals[1].Segment.Limit = 0xFFFFFFFF;
+    reg_vals[1].Segment.Selector = 0;
+    reg_vals[1].Segment.Flags = 0xC09B; /* 32-bit code, present, ring 0 */
+
+    /* Provide a stack pointer within the mapped page. */
+    reg_vals[2].Reg64 = 0x800;
+
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
-                                         &reg_name, 1, &reg_val);
+                                         reg_names, 3, reg_vals);
     if (FAILED(hr)) {
         fprintf(stderr, "WHvSetVirtualProcessorRegisters failed: 0x%lx\n", hr);
         WHvDeleteVirtualProcessor(partition, 0);
