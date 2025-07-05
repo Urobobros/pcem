@@ -8,7 +8,10 @@ int main(void)
 {
 #ifdef _WIN32
     HRESULT hr;
-    BOOLEAN hypervisor_present = FALSE;
+    /* BOOL is 4 bytes while BOOLEAN is 1 byte. WHvGetCapability expects
+       a 4-byte BOOL buffer so using BOOLEAN would trigger
+       WHV_E_INSUFFICIENT_BUFFER (0x80370301). */
+    BOOL hypervisor_present = FALSE;
     UINT32 written = 0;
     hr = WHvGetCapability(WHvCapabilityCodeHypervisorPresent,
                           &hypervisor_present,

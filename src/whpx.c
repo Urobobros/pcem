@@ -17,7 +17,9 @@ int whpx_init(void)
 {
     HRESULT hr;
 #ifdef _WIN32
-    BOOLEAN hypervisor_present = FALSE;
+    /* WHvGetCapability expects a BOOL buffer. Using the 1-byte BOOLEAN
+       type would cause WHV_E_INSUFFICIENT_BUFFER. */
+    BOOL hypervisor_present = FALSE;
 
     /* Check that the Windows Hypervisor Platform service is available */
     UINT32 written = 0;
