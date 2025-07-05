@@ -39,6 +39,7 @@
 #include "disc_img.h"
 #include "mem.h"
 #include "paths.h"
+#include "logging.h"
 #include "cpu_backend.h"
 #include "nethandler.h"
 
@@ -446,6 +447,7 @@ int pc_main(int argc, char **argv) {
         _sound_speed_changed = sound_speed_changed;
 
         paths_init();
+        pclog_start();
 
         init_plugin_engine();
         model_init_builtin();

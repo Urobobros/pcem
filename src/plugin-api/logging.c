@@ -17,12 +17,16 @@ void (*_dumpregs)();
 FILE *pclogf = NULL;
 
 uint8_t pclog_start() {
-#ifndef RELEASE_BUILD
+        char buf[1024];
+        strcpy(buf, logs_path);
+        put_backslash(buf);
+        strcat(buf, "pcem.log");
+
+#ifdef RELEASE_BUILD
+        fprintf(stdout, "Log file: %s (logging disabled in release builds)\n", buf);
+        return 0;
+#else
         if (!pclogf) {
-                char buf[1024];
-                strcpy(buf, logs_path);
-                put_backslash(buf);
-                strcat(buf, "pcem.log");
                 pclogf = fopen(buf, "wt");
 
                 if (NULL == pclogf) {
@@ -34,8 +38,6 @@ uint8_t pclog_start() {
                 fprintf(pclogf, "Logging to %s\n", buf);
         }
         return 1;
-#else
-        return 0;
 #endif
 }
 
