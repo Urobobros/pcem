@@ -21,7 +21,8 @@ int whpx_init(void)
 
     /* Check that the Windows Hypervisor Platform service is available */
     hr = WHvGetCapability(WHvCapabilityCodeHypervisorPresent,
-                          &hypervisor_present, sizeof(hypervisor_present));
+                          &hypervisor_present, sizeof(hypervisor_present),
+                          NULL);
     if (FAILED(hr)) {
         pclog("whpx: WHvGetCapability(HypervisorPresent) failed: 0x%lx\n", hr);
         return -1;
