@@ -1,6 +1,7 @@
 #ifdef USE_WHPX
 #include "whpx.h"
 #include "x86.h"
+#include "ibm.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -14,18 +15,30 @@ static size_t whpx_ram_size = 0;
 
 int whpx_init(void)
 {
-    if (WHvCreatePartition(&whpx_partition) != S_OK)
+    HRESULT hr;
+
+    hr = WHvCreatePartition(&whpx_partition);
+    if (FAILED(hr)) {
+        pclog("whpx: WHvCreatePartition failed: 0x%lx\n", hr);
         return -1;
+    }
 
     WHV_PARTITION_PROPERTY prop = {0};
     prop.ProcessorCount = 1;
-    if (WHvSetPartitionProperty(whpx_partition,
-                                WHvPartitionPropertyCodeProcessorCount,
-                                &prop, sizeof(prop)) != S_OK)
+    hr = WHvSetPartitionProperty(whpx_partition,
+                                 WHvPartitionPropertyCodeProcessorCount,
+                                 &prop, sizeof(prop));
+    if (FAILED(hr)) {
+        pclog("whpx: WHvSetPartitionProperty failed: 0x%lx\n", hr);
         return -1;
+    }
 
-    if (WHvSetupPartition(whpx_partition) != S_OK)
+    hr = WHvSetupPartition(whpx_partition);
+    if (FAILED(hr)) {
+        pclog("whpx: WHvSetupPartition failed: 0x%lx\n", hr);
         return -1;
+    }
+
     return 0;
 }
 
@@ -43,8 +56,11 @@ int whpx_vcpu_create(void)
 {
     if (!whpx_partition)
         return -1;
-    if (WHvCreateVirtualProcessor(whpx_partition, whpx_vcpu_id, 0) != S_OK)
+    HRESULT hr = WHvCreateVirtualProcessor(whpx_partition, whpx_vcpu_id, 0);
+    if (FAILED(hr)) {
+        pclog("whpx: WHvCreateVirtualProcessor failed: 0x%lx\n", hr);
         return -1;
+    }
     return 0;
 }
 
@@ -58,13 +74,20 @@ int whpx_map_memory(void *mem, size_t size)
                                  WHvMapGpaRangeFlagRead |
                                  WHvMapGpaRangeFlagWrite |
                                  WHvMapGpaRangeFlagExecute);
-    return (hr == S_OK) ? 0 : -1;
+    if (FAILED(hr)) {
+        pclog("whpx: WHvMapGpaRange failed: 0x%lx\n", hr);
+        return -1;
+    }
+    return 0;
 }
 
 void whpx_vcpu_destroy(void)
 {
-    if (whpx_partition)
-        WHvDeleteVirtualProcessor(whpx_partition, whpx_vcpu_id);
+    if (whpx_partition) {
+        HRESULT hr = WHvDeleteVirtualProcessor(whpx_partition, whpx_vcpu_id);
+        if (FAILED(hr))
+            pclog("whpx: WHvDeleteVirtualProcessor failed: 0x%lx\n", hr);
+    }
 }
 
 static int whpx_sync_to_vcpu(void)
@@ -134,7 +157,11 @@ static int whpx_sync_to_vcpu(void)
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
         whpx_partition, whpx_vcpu_id, regs, idx, vals);
-    return (hr == S_OK) ? 0 : -1;
+    if (FAILED(hr)) {
+        pclog("whpx: WHvSetVirtualProcessorRegisters failed: 0x%lx\n", hr);
+        return -1;
+    }
+    return 0;
 }
 
 static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
@@ -162,8 +189,10 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
 
     HRESULT hr = WHvGetVirtualProcessorRegisters(
         whpx_partition, whpx_vcpu_id, regs, idx, vals);
-    if (hr != S_OK)
+    if (FAILED(hr)) {
+        pclog("whpx: WHvGetVirtualProcessorRegisters failed: 0x%lx\n", hr);
         return -1;
+    }
 
     idx = 0;
     cpu_state.pc = vals[idx++].Reg64;
@@ -220,8 +249,10 @@ int whpx_vcpu_run(void)
 
     HRESULT hr = WHvRunVirtualProcessor(whpx_partition, whpx_vcpu_id, &exit_ctx,
                                          sizeof(exit_ctx));
-    if (hr != S_OK)
+    if (FAILED(hr)) {
+        pclog("whpx: WHvRunVirtualProcessor failed: 0x%lx\n", hr);
         return -1;
+    }
 
     if (whpx_sync_from_vcpu(&exit_ctx) != 0)
         return -1;
