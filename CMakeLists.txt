@@ -184,6 +184,7 @@ endif()
 find_package(OpenGL REQUIRED)
 
 add_subdirectory(src)
+add_subdirectory(tools)
 
 if(USE_EXPERIMENTAL)
         add_subdirectory(experimental)

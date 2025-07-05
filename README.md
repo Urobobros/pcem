@@ -38,6 +38,9 @@ To build with WHPX acceleration, pass `-DUSE_WHPX=ON` when configuring:
 cmake -G "Ninja" -DMSYS=TRUE -DUSE_WHPX=ON -DCMAKE_BUILD_TYPE=Release .
 ninja
 ```
+You can verify that WHPX is available on your system by building the `check-whpx`
+utility from the `tools` directory and running it. The program reports whether
+the hypervisor service can be accessed.
 When WHPX starts successfully the console will print `Using WHPX backend` and
 the window title will include `[WHPX]` after the CPU name.
 If initialization fails, detailed error messages are printed to help diagnose
