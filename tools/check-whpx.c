@@ -91,6 +91,8 @@ int main(void)
 
     WHV_REGISTER_NAME reg_name = WHvX64RegisterRip;
     WHV_REGISTER_VALUE reg_val = {0};
+    /* Explicitly set RIP to 0 so the HLT at GPA 0 executes. */
+    reg_val.Reg64 = 0;
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
                                          &reg_name, 1, &reg_val);
     if (FAILED(hr)) {
