@@ -1,4 +1,4 @@
-#[PCem](https:             //pcem-emulator.co.uk/)
+#[PCem](https://pcem-emulator.co.uk/)
 ![Test Debug Builds](https://github.com/sarah-walker-pcem/pcem/actions/workflows/test-debug-builds.yml/badge.svg)
 ![Test Release Builds](https://github.com/sarah-walker-pcem/pcem/actions/workflows/test-release-builds.yml/badge.svg)
 ## Download: [Windows](https://pcem-emulator.co.uk/files/PCemV17Win.zip)/[Linux](https://pcem-emulator.co.uk/files/PCemV17Linux.tar.gz)/[vNext (Wise Global Solutions Mirror)](https://mirror.wiseglobalsolutions.com/pcem/)
@@ -43,9 +43,9 @@ the window title will include `[WHPX]` after the CPU name.
 
 then `./src/pcem` to run.
 
-On startup the emulator prints the location of the log file (usually
-`<pcem_path>/logs/pcem.log`) in **Debug** builds so you know where to find it.
-Release builds disable logging completely.
+On startup the emulator prints the path to the log file (usually
+`<pcem_path>/logs/pcem.log`).
+Actual log output only appears in **Debug** builds.
 
 The Linux/BSD versions store BIOS ROM images, configuration files, and other data in `~/.pcem`
 
