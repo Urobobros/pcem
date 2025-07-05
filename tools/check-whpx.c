@@ -3,6 +3,11 @@
 #include <windows.h>
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
+#ifdef WHV_X64_SEGMENT_REGISTER_ATTRIBUTES
+#define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#else
+#define SEGATTR(seg) ((seg).Flags)
+#endif
 #endif
 
 int main(void)
@@ -109,7 +114,7 @@ int main(void)
     reg_vals[1].Segment.Base = 0;
     reg_vals[1].Segment.Limit = 0xFFFFFFFF;
     reg_vals[1].Segment.Selector = 0;
-    reg_vals[1].Segment.Attributes.AsUINT16 = 0xC09B; /* 32-bit code, present, ring 0 */
+    SEGATTR(reg_vals[1].Segment) = 0xC09B; /* 32-bit code, present, ring 0 */
 
     /* Provide a stack pointer within the mapped page. */
     reg_vals[2].Reg64 = 0x800;

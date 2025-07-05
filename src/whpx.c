@@ -8,6 +8,12 @@
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
 
+#ifdef WHV_X64_SEGMENT_REGISTER_ATTRIBUTES
+#define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#else
+#define SEGATTR(seg) ((seg).Flags)
+#endif
+
 static WHV_PARTITION_HANDLE whpx_partition = NULL;
 static UINT32 whpx_vcpu_id = 0;
 static void *whpx_ram = NULL;
@@ -148,37 +154,43 @@ static int whpx_sync_to_vcpu(void)
     vals[idx].Segment.Base = cs;
     vals[idx].Segment.Limit = cpu_state.seg_cs.limit;
     vals[idx].Segment.Selector = CS;
-    vals[idx++].Segment.Attributes.AsUINT16 = cpu_state.seg_cs.access;
+    SEGATTR(vals[idx].Segment) = cpu_state.seg_cs.access;
+    idx++;
 
     regs[idx] = WHvX64RegisterDs;
     vals[idx].Segment.Base = ds;
     vals[idx].Segment.Limit = cpu_state.seg_ds.limit;
     vals[idx].Segment.Selector = DS;
-    vals[idx++].Segment.Attributes.AsUINT16 = cpu_state.seg_ds.access;
+    SEGATTR(vals[idx].Segment) = cpu_state.seg_ds.access;
+    idx++;
 
     regs[idx] = WHvX64RegisterEs;
     vals[idx].Segment.Base = es;
     vals[idx].Segment.Limit = cpu_state.seg_es.limit;
     vals[idx].Segment.Selector = ES;
-    vals[idx++].Segment.Attributes.AsUINT16 = cpu_state.seg_es.access;
+    SEGATTR(vals[idx].Segment) = cpu_state.seg_es.access;
+    idx++;
 
     regs[idx] = WHvX64RegisterSs;
     vals[idx].Segment.Base = ss;
     vals[idx].Segment.Limit = cpu_state.seg_ss.limit;
     vals[idx].Segment.Selector = SS;
-    vals[idx++].Segment.Attributes.AsUINT16 = cpu_state.seg_ss.access;
+    SEGATTR(vals[idx].Segment) = cpu_state.seg_ss.access;
+    idx++;
 
     regs[idx] = WHvX64RegisterFs;
     vals[idx].Segment.Base = cpu_state.seg_fs.base;
     vals[idx].Segment.Limit = cpu_state.seg_fs.limit;
     vals[idx].Segment.Selector = FS;
-    vals[idx++].Segment.Attributes.AsUINT16 = cpu_state.seg_fs.access;
+    SEGATTR(vals[idx].Segment) = cpu_state.seg_fs.access;
+    idx++;
 
     regs[idx] = WHvX64RegisterGs;
     vals[idx].Segment.Base = cpu_state.seg_gs.base;
     vals[idx].Segment.Limit = cpu_state.seg_gs.limit;
     vals[idx].Segment.Selector = GS;
-    vals[idx++].Segment.Attributes.AsUINT16 = cpu_state.seg_gs.access;
+    SEGATTR(vals[idx].Segment) = cpu_state.seg_gs.access;
+    idx++;
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
         whpx_partition, whpx_vcpu_id, regs, idx, vals);
@@ -233,32 +245,38 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     cpu_state.seg_cs.base = vals[idx].Segment.Base;
     cpu_state.seg_cs.limit = vals[idx].Segment.Limit;
     cpu_state.seg_cs.seg = vals[idx].Segment.Selector;
-    cpu_state.seg_cs.access = vals[idx++].Segment.Attributes.AsUINT16;
+    cpu_state.seg_cs.access = SEGATTR(vals[idx].Segment);
+    idx++;
 
     cpu_state.seg_ds.base = vals[idx].Segment.Base;
     cpu_state.seg_ds.limit = vals[idx].Segment.Limit;
     cpu_state.seg_ds.seg = vals[idx].Segment.Selector;
-    cpu_state.seg_ds.access = vals[idx++].Segment.Attributes.AsUINT16;
+    cpu_state.seg_ds.access = SEGATTR(vals[idx].Segment);
+    idx++;
 
     cpu_state.seg_es.base = vals[idx].Segment.Base;
     cpu_state.seg_es.limit = vals[idx].Segment.Limit;
     cpu_state.seg_es.seg = vals[idx].Segment.Selector;
-    cpu_state.seg_es.access = vals[idx++].Segment.Attributes.AsUINT16;
+    cpu_state.seg_es.access = SEGATTR(vals[idx].Segment);
+    idx++;
 
     cpu_state.seg_ss.base = vals[idx].Segment.Base;
     cpu_state.seg_ss.limit = vals[idx].Segment.Limit;
     cpu_state.seg_ss.seg = vals[idx].Segment.Selector;
-    cpu_state.seg_ss.access = vals[idx++].Segment.Attributes.AsUINT16;
+    cpu_state.seg_ss.access = SEGATTR(vals[idx].Segment);
+    idx++;
 
     cpu_state.seg_fs.base = vals[idx].Segment.Base;
     cpu_state.seg_fs.limit = vals[idx].Segment.Limit;
     cpu_state.seg_fs.seg = vals[idx].Segment.Selector;
-    cpu_state.seg_fs.access = vals[idx++].Segment.Attributes.AsUINT16;
+    cpu_state.seg_fs.access = SEGATTR(vals[idx].Segment);
+    idx++;
 
     cpu_state.seg_gs.base = vals[idx].Segment.Base;
     cpu_state.seg_gs.limit = vals[idx].Segment.Limit;
     cpu_state.seg_gs.seg = vals[idx].Segment.Selector;
-    cpu_state.seg_gs.access = vals[idx++].Segment.Attributes.AsUINT16;
+    cpu_state.seg_gs.access = SEGATTR(vals[idx].Segment);
+    idx++;
 
     return 0;
 }
