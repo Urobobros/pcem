@@ -20,9 +20,10 @@ int whpx_init(void)
     BOOLEAN hypervisor_present = FALSE;
 
     /* Check that the Windows Hypervisor Platform service is available */
+    UINT32 written = 0;
     hr = WHvGetCapability(WHvCapabilityCodeHypervisorPresent,
                           &hypervisor_present, sizeof(hypervisor_present),
-                          NULL);
+                          &written);
     if (FAILED(hr)) {
         pclog("whpx: WHvGetCapability(HypervisorPresent) failed: 0x%lx\n", hr);
         return -1;

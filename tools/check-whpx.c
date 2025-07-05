@@ -9,10 +9,11 @@ int main(void)
 #ifdef _WIN32
     HRESULT hr;
     BOOLEAN hypervisor_present = FALSE;
+    UINT32 written = 0;
     hr = WHvGetCapability(WHvCapabilityCodeHypervisorPresent,
                           &hypervisor_present,
                           sizeof(hypervisor_present),
-                          NULL);
+                          &written);
     if (FAILED(hr)) {
         fprintf(stderr, "WHvGetCapability failed: 0x%lx\n", hr);
 #ifdef WHV_E_UNKNOWN_CAPABILITY
