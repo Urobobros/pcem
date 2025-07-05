@@ -40,6 +40,8 @@ ninja
 ```
 When WHPX starts successfully the console will print `Using WHPX backend` and
 the window title will include `[WHPX]` after the CPU name.
+If initialization fails, detailed error messages are printed to help diagnose
+missing features or permissions.
 
 then `./src/pcem` to run.
 

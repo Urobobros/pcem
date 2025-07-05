@@ -39,7 +39,7 @@
 #include "disc_img.h"
 #include "mem.h"
 #include "paths.h"
-#include "logging.h"
+#include <pcem/logging.h>
 #include "cpu_backend.h"
 #include "nethandler.h"
 

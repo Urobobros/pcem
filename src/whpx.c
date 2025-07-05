@@ -16,6 +16,23 @@ static size_t whpx_ram_size = 0;
 int whpx_init(void)
 {
     HRESULT hr;
+#ifdef _WIN32
+    BOOLEAN hypervisor_present = FALSE;
+
+    /* Check that the Windows Hypervisor Platform service is available */
+    hr = WHvGetCapability(WHvCapabilityCodeHypervisorPresent,
+                          &hypervisor_present, sizeof(hypervisor_present));
+    if (FAILED(hr)) {
+        pclog("whpx: WHvGetCapability(HypervisorPresent) failed: 0x%lx\n", hr);
+        return -1;
+    }
+
+    if (!hypervisor_present) {
+        pclog("whpx: Hypervisor not present. Ensure virtualization is enabled "
+              "and the 'Windows Hypervisor Platform' feature is installed.\n");
+        return -1;
+    }
+#endif
 
     hr = WHvCreatePartition(&whpx_partition);
     if (FAILED(hr)) {
