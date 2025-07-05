@@ -109,7 +109,7 @@ int main(void)
     reg_vals[1].Segment.Base = 0;
     reg_vals[1].Segment.Limit = 0xFFFFFFFF;
     reg_vals[1].Segment.Selector = 0;
-    reg_vals[1].Segment.Flags = 0xC09B; /* 32-bit code, present, ring 0 */
+    reg_vals[1].Segment.Attributes.AsUINT16 = 0xC09B; /* 32-bit code, present, ring 0 */
 
     /* Provide a stack pointer within the mapped page. */
     reg_vals[2].Reg64 = 0x800;
