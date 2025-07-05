@@ -20,6 +20,8 @@ void cpu_backend_init(void) {
                 cpu_backend = CPU_BACKEND_RECOMP;
                 pclog("WHPX initialization failed, falling back to interpreter\n");
         }
+#else
+        pclog("WHPX support not compiled; using interpreter\n");
 #endif
 }
 

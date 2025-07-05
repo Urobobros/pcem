@@ -26,7 +26,7 @@ int main(void)
         return 1;
     }
     if (!hypervisor_present) {
-        printf("Hypervisor not present. Make sure virtualization is enabled and the Windows Hypervisor Platform feature is installed.\n");
+        printf("WHPX NO - Hypervisor not present. Make sure virtualization is enabled and the Windows Hypervisor Platform feature is installed.\n");
         return 2;
     }
     WHV_PARTITION_HANDLE partition = NULL;
