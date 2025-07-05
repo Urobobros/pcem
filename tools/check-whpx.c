@@ -3,11 +3,7 @@
 #include <windows.h>
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
-#ifdef WHV_X64_SEGMENT_REGISTER_ATTRIBUTES
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
-#else
-#define SEGATTR(seg) ((seg).Flags)
-#endif
 #endif
 
 int main(void)
