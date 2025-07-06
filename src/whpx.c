@@ -8,7 +8,13 @@
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
 
+#ifdef __MINGW32__
+/* MinGW headers expose segment attributes directly as a UINT16 field */
+#define SEGATTR(seg) ((seg).Attributes)
+#else
+/* Windows SDK headers wrap the attributes inside a union */
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#endif
 
 static WHV_PARTITION_HANDLE whpx_partition = NULL;
 static UINT32 whpx_vcpu_id = 0;
