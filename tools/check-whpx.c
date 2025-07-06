@@ -1,9 +1,93 @@
 #include <stdio.h>
+#include <string.h>
 #ifdef _WIN32
 #include <windows.h>
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
+#ifdef __MINGW32__
+/* MinGW headers expose segment attributes directly as a UINT16 field */
+#define SEGATTR(seg) ((seg).Attributes)
+#else
+/* Windows SDK headers wrap the attributes inside a union */
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#endif
+
+struct whpx_hr_entry {
+    HRESULT hr;
+    const char *name;
+};
+
+static const struct whpx_hr_entry whpx_hr_table[] = {
+#ifdef WHV_E_UNKNOWN_CAPABILITY
+    {WHV_E_UNKNOWN_CAPABILITY, "WHV_E_UNKNOWN_CAPABILITY"},
+#endif
+#ifdef WHV_E_INSUFFICIENT_BUFFER
+    {WHV_E_INSUFFICIENT_BUFFER, "WHV_E_INSUFFICIENT_BUFFER"},
+#endif
+#ifdef WHV_E_UNKNOWN_PROPERTY
+    {WHV_E_UNKNOWN_PROPERTY, "WHV_E_UNKNOWN_PROPERTY"},
+#endif
+#ifdef WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG
+    {WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG, "WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG"},
+#endif
+#ifdef WHV_E_INVALID_PARTITION_CONFIG
+    {WHV_E_INVALID_PARTITION_CONFIG, "WHV_E_INVALID_PARTITION_CONFIG"},
+#endif
+#ifdef WHV_E_GPA_RANGE_NOT_FOUND
+    {WHV_E_GPA_RANGE_NOT_FOUND, "WHV_E_GPA_RANGE_NOT_FOUND"},
+#endif
+#ifdef WHV_E_VP_ALREADY_EXISTS
+    {WHV_E_VP_ALREADY_EXISTS, "WHV_E_VP_ALREADY_EXISTS"},
+#endif
+#ifdef WHV_E_VP_DOES_NOT_EXIST
+    {WHV_E_VP_DOES_NOT_EXIST, "WHV_E_VP_DOES_NOT_EXIST"},
+#endif
+#ifdef WHV_E_INVALID_VP_STATE
+    {WHV_E_INVALID_VP_STATE, "WHV_E_INVALID_VP_STATE"},
+#endif
+#ifdef WHV_E_INVALID_VP_REGISTER_NAME
+    {WHV_E_INVALID_VP_REGISTER_NAME, "WHV_E_INVALID_VP_REGISTER_NAME"},
+#endif
+#ifdef WHV_E_INVALID_ARG
+    {WHV_E_INVALID_ARG, "WHV_E_INVALID_ARG"},
+#endif
+    {0, NULL}
+};
+
+static const char *whpx_hresult_name(HRESULT hr)
+{
+    for (int i = 0; whpx_hr_table[i].name; i++)
+        if (whpx_hr_table[i].hr == hr)
+            return whpx_hr_table[i].name;
+    return NULL;
+}
+
+static void log_hresult(const char *prefix, HRESULT hr)
+{
+    char *msg = NULL;
+    HMODULE mod = GetModuleHandleA("WinHvPlatform.dll");
+    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                       FORMAT_MESSAGE_FROM_SYSTEM |
+                       FORMAT_MESSAGE_FROM_HMODULE |
+                       FORMAT_MESSAGE_IGNORE_INSERTS,
+                   mod, hr, 0, (LPSTR)&msg, 0, NULL);
+    const char *name = whpx_hresult_name(hr);
+    if (msg) {
+        size_t len = strlen(msg);
+        while (len && (msg[len - 1] == '\n' || msg[len - 1] == '\r'))
+            msg[--len] = '\0';
+        if (name)
+            fprintf(stderr, "%s failed: 0x%lx (%s) - %s\n", prefix, hr, name, msg);
+        else
+            fprintf(stderr, "%s failed: 0x%lx - %s\n", prefix, hr, msg);
+        LocalFree(msg);
+    } else {
+        if (name)
+            fprintf(stderr, "%s failed: 0x%lx (%s)\n", prefix, hr, name);
+        else
+            fprintf(stderr, "%s failed: 0x%lx\n", prefix, hr);
+    }
+}
 #endif
 
 int main(void)
@@ -20,7 +104,7 @@ int main(void)
                           sizeof(hypervisor_present),
                           &written);
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvGetCapability failed: 0x%lx\n", hr);
+        log_hresult("WHvGetCapability", hr);
 #ifdef WHV_E_UNKNOWN_CAPABILITY
         if (hr == WHV_E_UNKNOWN_CAPABILITY)
             fprintf(stderr, "The installed Windows version does not support WHPX or the feature is missing.\n");
@@ -34,7 +118,7 @@ int main(void)
     WHV_PARTITION_HANDLE partition = NULL;
     hr = WHvCreatePartition(&partition);
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvCreatePartition failed: 0x%lx\n", hr);
+        log_hresult("WHvCreatePartition", hr);
         return 1;
     }
 
@@ -44,14 +128,14 @@ int main(void)
                                  WHvPartitionPropertyCodeProcessorCount,
                                  &prop, sizeof(prop));
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvSetPartitionProperty failed: 0x%lx\n", hr);
+        log_hresult("WHvSetPartitionProperty", hr);
         WHvDeletePartition(partition);
         return 1;
     }
 
     hr = WHvSetupPartition(partition);
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvSetupPartition failed: 0x%lx\n", hr);
+        log_hresult("WHvSetupPartition", hr);
         WHvDeletePartition(partition);
         return 1;
     }
@@ -70,7 +154,7 @@ int main(void)
                         WHvMapGpaRangeFlagWrite |
                         WHvMapGpaRangeFlagExecute);
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvMapGpaRange failed: 0x%lx\n", hr);
+        log_hresult("WHvMapGpaRange", hr);
 #ifdef E_INVALIDARG
         if (hr == E_INVALIDARG)
             fprintf(stderr, "Invalid mapping parameters. Make sure this"
@@ -84,7 +168,7 @@ int main(void)
 
     hr = WHvCreateVirtualProcessor(partition, 0, 0);
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvCreateVirtualProcessor failed: 0x%lx\n", hr);
+        log_hresult("WHvCreateVirtualProcessor", hr);
         VirtualFree(ram, 0, MEM_RELEASE);
         WHvDeletePartition(partition);
         return 1;
@@ -118,7 +202,7 @@ int main(void)
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
                                          reg_names, 3, reg_vals);
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvSetVirtualProcessorRegisters failed: 0x%lx\n", hr);
+        log_hresult("WHvSetVirtualProcessorRegisters", hr);
         WHvDeleteVirtualProcessor(partition, 0);
         VirtualFree(ram, 0, MEM_RELEASE);
         WHvDeletePartition(partition);
@@ -128,7 +212,7 @@ int main(void)
     WHV_RUN_VP_EXIT_CONTEXT exit_ctx;
     hr = WHvRunVirtualProcessor(partition, 0, &exit_ctx, sizeof(exit_ctx));
     if (FAILED(hr)) {
-        fprintf(stderr, "WHvRunVirtualProcessor failed: 0x%lx\n", hr);
+        log_hresult("WHvRunVirtualProcessor", hr);
     } else if (exit_ctx.ExitReason == WHvRunVpExitReasonX64Halt) {
         printf("Windows Hypervisor Platform is available and functional.\n");
     } else {

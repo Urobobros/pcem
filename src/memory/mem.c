@@ -8,6 +8,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(_WIN32) && defined(USE_WHPX)
+#include <windows.h>
+#endif
 #include "ibm.h"
 
 #include "config.h"
@@ -1340,8 +1343,14 @@ void mem_init() {
 void mem_alloc() {
         int c;
 
+#if defined(_WIN32) && defined(USE_WHPX)
+        if (ram)
+                VirtualFree(ram, 0, MEM_RELEASE);
+        ram = VirtualAlloc(NULL, mem_size * 1024, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#else
         free(ram);
         ram = malloc(mem_size * 1024);
+#endif
         memset(ram, 0, mem_size * 1024);
 
         free(byte_dirty_mask);
