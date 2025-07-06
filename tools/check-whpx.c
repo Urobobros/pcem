@@ -11,6 +11,7 @@
 /* Windows SDK headers wrap the attributes inside a union */
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
 #endif
+#endif
 
 struct whpx_hr_entry {
     HRESULT hr;

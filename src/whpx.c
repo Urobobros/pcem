@@ -97,6 +97,111 @@ static WHV_PARTITION_HANDLE whpx_partition = NULL;
 static UINT32 whpx_vcpu_id = 0;
 static void *whpx_ram = NULL;
 static size_t whpx_ram_size = 0;
+static int whpx_vcpu_created = 0;
+
+#ifdef _WIN32
+static const char *whpx_hresult_string(HRESULT hr)
+{
+    switch (hr) {
+#ifdef WHV_E_UNKNOWN_CAPABILITY
+    case WHV_E_UNKNOWN_CAPABILITY: return "WHV_E_UNKNOWN_CAPABILITY";
+#endif
+#ifdef WHV_E_INSUFFICIENT_BUFFER
+    case WHV_E_INSUFFICIENT_BUFFER: return "WHV_E_INSUFFICIENT_BUFFER";
+#endif
+#ifdef WHV_E_UNKNOWN_PROPERTY
+    case WHV_E_UNKNOWN_PROPERTY: return "WHV_E_UNKNOWN_PROPERTY";
+#endif
+#ifdef WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG
+    case WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG: return "WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG";
+#endif
+#ifdef WHV_E_INVALID_PARTITION_CONFIG
+    case WHV_E_INVALID_PARTITION_CONFIG: return "WHV_E_INVALID_PARTITION_CONFIG";
+#endif
+#ifdef WHV_E_GPA_RANGE_NOT_FOUND
+    case WHV_E_GPA_RANGE_NOT_FOUND: return "WHV_E_GPA_RANGE_NOT_FOUND";
+#endif
+#ifdef WHV_E_VP_ALREADY_EXISTS
+    case WHV_E_VP_ALREADY_EXISTS: return "WHV_E_VP_ALREADY_EXISTS";
+#endif
+#ifdef WHV_E_VP_DOES_NOT_EXIST
+    case WHV_E_VP_DOES_NOT_EXIST: return "WHV_E_VP_DOES_NOT_EXIST";
+#endif
+#ifdef WHV_E_INVALID_VP_STATE
+    case WHV_E_INVALID_VP_STATE: return "WHV_E_INVALID_VP_STATE";
+#endif
+#ifdef WHV_E_INVALID_VP_REGISTER_NAME
+    case WHV_E_INVALID_VP_REGISTER_NAME: return "WHV_E_INVALID_VP_REGISTER_NAME";
+#endif
+#ifdef WHV_E_INVALID_ARG
+    case WHV_E_INVALID_ARG: return "WHV_E_INVALID_ARG";
+#endif
+    default:
+        return NULL;
+    }
+}
+
+static void whpx_log_hresult(const char *msg, HRESULT hr)
+{
+    const char *err = whpx_hresult_string(hr);
+    if (err)
+        pclog("whpx: %s: %s (0x%lx)\n", msg, err, hr);
+    else
+        pclog("whpx: %s: 0x%lx\n", msg, hr);
+}
+#endif
+
+#ifdef _WIN32
+static const char *whpx_hresult_string(HRESULT hr)
+{
+    switch (hr) {
+#ifdef WHV_E_UNKNOWN_CAPABILITY
+    case WHV_E_UNKNOWN_CAPABILITY: return "WHV_E_UNKNOWN_CAPABILITY";
+#endif
+#ifdef WHV_E_INSUFFICIENT_BUFFER
+    case WHV_E_INSUFFICIENT_BUFFER: return "WHV_E_INSUFFICIENT_BUFFER";
+#endif
+#ifdef WHV_E_UNKNOWN_PROPERTY
+    case WHV_E_UNKNOWN_PROPERTY: return "WHV_E_UNKNOWN_PROPERTY";
+#endif
+#ifdef WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG
+    case WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG: return "WHV_E_UNSUPPORTED_HYPERVISOR_CONFIG";
+#endif
+#ifdef WHV_E_INVALID_PARTITION_CONFIG
+    case WHV_E_INVALID_PARTITION_CONFIG: return "WHV_E_INVALID_PARTITION_CONFIG";
+#endif
+#ifdef WHV_E_GPA_RANGE_NOT_FOUND
+    case WHV_E_GPA_RANGE_NOT_FOUND: return "WHV_E_GPA_RANGE_NOT_FOUND";
+#endif
+#ifdef WHV_E_VP_ALREADY_EXISTS
+    case WHV_E_VP_ALREADY_EXISTS: return "WHV_E_VP_ALREADY_EXISTS";
+#endif
+#ifdef WHV_E_VP_DOES_NOT_EXIST
+    case WHV_E_VP_DOES_NOT_EXIST: return "WHV_E_VP_DOES_NOT_EXIST";
+#endif
+#ifdef WHV_E_INVALID_VP_STATE
+    case WHV_E_INVALID_VP_STATE: return "WHV_E_INVALID_VP_STATE";
+#endif
+#ifdef WHV_E_INVALID_VP_REGISTER_NAME
+    case WHV_E_INVALID_VP_REGISTER_NAME: return "WHV_E_INVALID_VP_REGISTER_NAME";
+#endif
+#ifdef WHV_E_INVALID_ARG
+    case WHV_E_INVALID_ARG: return "WHV_E_INVALID_ARG";
+#endif
+    default:
+        return NULL;
+    }
+}
+
+static void whpx_log_hresult(const char *msg, HRESULT hr)
+{
+    const char *err = whpx_hresult_string(hr);
+    if (err)
+        pclog("whpx: %s: %s (0x%lx)\n", msg, err, hr);
+    else
+        pclog("whpx: %s: 0x%lx\n", msg, hr);
+}
+#endif
 
 int whpx_init(void)
 {
@@ -113,6 +218,12 @@ int whpx_init(void)
                           &written);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvGetCapability(HypervisorPresent)", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvGetCapability(HypervisorPresent) failed", hr);
+#else
+        pclog("whpx: WHvGetCapability(HypervisorPresent) failed: 0x%lx\n", hr);
+#endif
+
         return -1;
     }
 
@@ -126,6 +237,12 @@ int whpx_init(void)
     hr = WHvCreatePartition(&whpx_partition);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvCreatePartition", hr);
+
+#ifdef _WIN32
+        whpx_log_hresult("WHvCreatePartition failed", hr);
+#else
+        pclog("whpx: WHvCreatePartition failed: 0x%lx\n", hr);
+#endif
         return -1;
     }
 
@@ -135,13 +252,24 @@ int whpx_init(void)
                                  WHvPartitionPropertyCodeProcessorCount,
                                  &prop, sizeof(prop));
     if (FAILED(hr)) {
+
         whpx_log_hresult("WHvSetPartitionProperty", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvSetPartitionProperty failed", hr);
+#else
+        pclog("whpx: WHvSetPartitionProperty failed: 0x%lx\n", hr);
+#endif
         return -1;
     }
 
     hr = WHvSetupPartition(whpx_partition);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvSetupPartition", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvSetupPartition failed", hr);
+#else
+        pclog("whpx: WHvSetupPartition failed: 0x%lx\n", hr);
+#endif
         return -1;
     }
 
@@ -162,11 +290,19 @@ int whpx_vcpu_create(void)
 {
     if (!whpx_partition)
         return -1;
+    if (whpx_vcpu_created)
+        whpx_vcpu_destroy();
     HRESULT hr = WHvCreateVirtualProcessor(whpx_partition, whpx_vcpu_id, 0);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvCreateVirtualProcessor", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvCreateVirtualProcessor failed", hr);
+#else
+        pclog("whpx: WHvCreateVirtualProcessor failed: 0x%lx\n", hr);
+#endif
         return -1;
     }
+    whpx_vcpu_created = 1;
     return 0;
 }
 
@@ -182,6 +318,11 @@ int whpx_map_memory(void *mem, size_t size)
                                  WHvMapGpaRangeFlagExecute);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvMapGpaRange", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvMapGpaRange failed", hr);
+#else
+        pclog("whpx: WHvMapGpaRange failed: 0x%lx\n", hr);
+#endif
 #ifdef E_INVALIDARG
         if (hr == E_INVALIDARG)
             pclog("whpx: buffer or size not 4 KB aligned or running 32-bit build\n");
@@ -193,10 +334,18 @@ int whpx_map_memory(void *mem, size_t size)
 
 void whpx_vcpu_destroy(void)
 {
-    if (whpx_partition) {
+    if (whpx_partition && whpx_vcpu_created) {
         HRESULT hr = WHvDeleteVirtualProcessor(whpx_partition, whpx_vcpu_id);
         if (FAILED(hr))
             whpx_log_hresult("WHvDeleteVirtualProcessor", hr);
+        if (FAILED(hr)) {
+#ifdef _WIN32
+            whpx_log_hresult("WHvDeleteVirtualProcessor failed", hr);
+#else
+            pclog("whpx: WHvDeleteVirtualProcessor failed: 0x%lx\n", hr);
+#endif
+        }
+        whpx_vcpu_created = 0;
     }
 }
 
@@ -275,6 +424,11 @@ static int whpx_sync_to_vcpu(void)
         whpx_partition, whpx_vcpu_id, regs, idx, vals);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvSetVirtualProcessorRegisters", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvSetVirtualProcessorRegisters failed", hr);
+#else
+        pclog("whpx: WHvSetVirtualProcessorRegisters failed: 0x%lx\n", hr);
+#endif
         return -1;
     }
     return 0;
@@ -307,6 +461,11 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
         whpx_partition, whpx_vcpu_id, regs, idx, vals);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvGetVirtualProcessorRegisters", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvGetVirtualProcessorRegisters failed", hr);
+#else
+        pclog("whpx: WHvGetVirtualProcessorRegisters failed: 0x%lx\n", hr);
+#endif
         return -1;
     }
 
@@ -373,6 +532,11 @@ int whpx_vcpu_run(void)
                                          sizeof(exit_ctx));
     if (FAILED(hr)) {
         whpx_log_hresult("WHvRunVirtualProcessor", hr);
+#ifdef _WIN32
+        whpx_log_hresult("WHvRunVirtualProcessor failed", hr);
+#else
+        pclog("whpx: WHvRunVirtualProcessor failed: 0x%lx\n", hr);
+#endif
         return -1;
     }
 
