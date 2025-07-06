@@ -89,7 +89,6 @@ static void log_hresult(const char *prefix, HRESULT hr)
             fprintf(stderr, "%s failed: 0x%lx\n", prefix, hr);
     }
 }
-#endif
 
 int main(void)
 {
