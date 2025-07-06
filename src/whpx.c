@@ -20,6 +20,7 @@ static WHV_PARTITION_HANDLE whpx_partition = NULL;
 static UINT32 whpx_vcpu_id = 0;
 static void *whpx_ram = NULL;
 static size_t whpx_ram_size = 0;
+static int whpx_vcpu_created = 0;
 
 #ifdef _WIN32
 static const char *whpx_hresult_string(HRESULT hr)
@@ -153,6 +154,8 @@ int whpx_vcpu_create(void)
 {
     if (!whpx_partition)
         return -1;
+    if (whpx_vcpu_created)
+        whpx_vcpu_destroy();
     HRESULT hr = WHvCreateVirtualProcessor(whpx_partition, whpx_vcpu_id, 0);
     if (FAILED(hr)) {
 #ifdef _WIN32
@@ -162,6 +165,7 @@ int whpx_vcpu_create(void)
 #endif
         return -1;
     }
+    whpx_vcpu_created = 1;
     return 0;
 }
 
@@ -192,7 +196,7 @@ int whpx_map_memory(void *mem, size_t size)
 
 void whpx_vcpu_destroy(void)
 {
-    if (whpx_partition) {
+    if (whpx_partition && whpx_vcpu_created) {
         HRESULT hr = WHvDeleteVirtualProcessor(whpx_partition, whpx_vcpu_id);
         if (FAILED(hr)) {
 #ifdef _WIN32
@@ -201,6 +205,7 @@ void whpx_vcpu_destroy(void)
             pclog("whpx: WHvDeleteVirtualProcessor failed: 0x%lx\n", hr);
 #endif
         }
+        whpx_vcpu_created = 0;
     }
 }
 
