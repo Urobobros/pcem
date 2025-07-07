@@ -2,6 +2,7 @@
 #include "whpx.h"
 #include "x86.h"
 #include "ibm.h"
+#include <stdint.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -101,6 +102,9 @@ static int whpx_vcpu_created = 0;
 
 int whpx_init(void)
 {
+#if UINTPTR_MAX != 0xffffffffffffffffULL
+    pclog("whpx: 32-bit build detected; WHPX requires a 64-bit executable\n");
+#endif
     HRESULT hr;
 #ifdef _WIN32
     /* WHvGetCapability expects a BOOL buffer. Using the 1-byte BOOLEAN
@@ -208,7 +212,9 @@ int whpx_map_memory(void *mem, size_t size)
 {
     if (!whpx_partition)
         return -1;
-    pclog("Mapping memory: addr=%p size=%zu\n", mem, size);
+    uintptr_t addr = (uintptr_t)mem;
+    pclog("Mapping memory: addr=%p size=%zu (addr mod 4K=0x%lx size mod 4K=0x%lx)\n",
+          mem, size, addr & 0xfff, (unsigned long)size & 0xfff);
     whpx_ram = mem;
     whpx_ram_size = size;
     HRESULT hr = WHvMapGpaRange(whpx_partition, mem, 0, size,
