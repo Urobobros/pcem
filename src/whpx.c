@@ -188,6 +188,8 @@ int whpx_vcpu_create(void)
         return -1;
     if (whpx_vcpu_created)
         whpx_vcpu_destroy();
+    pclog("Creating vCPU: partition=%p id=%u flags=0\n",
+          whpx_partition, whpx_vcpu_id);
     HRESULT hr = WHvCreateVirtualProcessor(whpx_partition, whpx_vcpu_id, 0);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvCreateVirtualProcessor", hr);
@@ -206,6 +208,7 @@ int whpx_map_memory(void *mem, size_t size)
 {
     if (!whpx_partition)
         return -1;
+    pclog("Mapping memory: addr=%p size=%zu\n", mem, size);
     whpx_ram = mem;
     whpx_ram_size = size;
     HRESULT hr = WHvMapGpaRange(whpx_partition, mem, 0, size,
