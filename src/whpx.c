@@ -215,6 +215,8 @@ int whpx_map_memory(void *mem, size_t size)
     uintptr_t addr = (uintptr_t)mem;
     pclog("Mapping memory: addr=%p size=%zu (addr mod 4K=0x%lx size mod 4K=0x%lx)\n",
           mem, size, addr & 0xfff, (unsigned long)size & 0xfff);
+    pclog("Mapping memory: addr=%p size=%zu\n", mem, size);
+
     whpx_ram = mem;
     whpx_ram_size = size;
     HRESULT hr = WHvMapGpaRange(whpx_partition, mem, 0, size,
