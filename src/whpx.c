@@ -199,6 +199,11 @@ int whpx_vcpu_create(void)
         whpx_log_hresult("WHvCreateVirtualProcessor", hr);
 #ifdef _WIN32
         whpx_log_hresult("WHvCreateVirtualProcessor failed", hr);
+#ifdef E_INVALIDARG
+        if (hr == E_INVALIDARG)
+            pclog("whpx: invalid arguments when creating the vCPU. "
+                  "Ensure PCem is built for 64-bit and RAM is page aligned.\n");
+#endif
 #else
         pclog("whpx: WHvCreateVirtualProcessor failed: 0x%lx\n", hr);
 #endif
@@ -215,8 +220,6 @@ int whpx_map_memory(void *mem, size_t size)
     uintptr_t addr = (uintptr_t)mem;
     pclog("Mapping memory: addr=%p size=%zu (addr mod 4K=0x%lx size mod 4K=0x%lx)\n",
           mem, size, addr & 0xfff, (unsigned long)size & 0xfff);
-    pclog("Mapping memory: addr=%p size=%zu\n", mem, size);
-
     whpx_ram = mem;
     whpx_ram_size = size;
     HRESULT hr = WHvMapGpaRange(whpx_partition, mem, 0, size,
