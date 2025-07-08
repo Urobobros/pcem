@@ -177,6 +177,10 @@ static int init_real_mode_registers(void)
     cpu_state.seg_cs.base      = 0xF0000;
     cpu_state.seg_cs.limit     = 0xFFFF;
     cpu_state.seg_cs.access    = code_attr & 0xFF;
+    pclog("whpx: Setting CS: selector=0x%04X base=0x%08X attr=0x%04X\n",
+          vals[6].Segment.Selector,
+          (UINT32)vals[6].Segment.Base,
+          SEGATTR(vals[6].Segment));
 
     /* Data segments */
     for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
