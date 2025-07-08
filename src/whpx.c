@@ -4,6 +4,7 @@
 #include "ibm.h"
 #include "mem.h"
 #include <stdint.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -100,6 +101,97 @@ static UINT32 whpx_vcpu_id = 0;
 static void *whpx_ram = NULL;
 static size_t whpx_ram_size = 0;
 static int whpx_vcpu_created = 0;
+static int whpx_first_run = 1;
+
+static void whpx_dump_vp_registers(const char *msg)
+{
+    WHV_REGISTER_NAME regs_to_dump[] = {
+        WHvX64RegisterRip,
+        WHvX64RegisterCs,
+        WHvX64RegisterRflags,
+        WHvX64RegisterCr0,
+        WHvX64RegisterCr3,
+        WHvX64RegisterCr4,
+    };
+    WHV_REGISTER_VALUE values[sizeof(regs_to_dump)/sizeof(regs_to_dump[0])];
+
+    HRESULT hr = WHvGetVirtualProcessorRegisters(
+        whpx_partition, whpx_vcpu_id,
+        regs_to_dump, sizeof(regs_to_dump)/sizeof(regs_to_dump[0]), values);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvGetVirtualProcessorRegisters", hr);
+        return;
+    }
+
+    pclog("whpx: %s register dump:\n", msg ? msg : "");
+    pclog("  RIP=0x%016llX\n", values[0].Reg64);
+    pclog("  CS selector=0x%04X base=0x%016llX limit=0x%08X attr=0x%04X\n",
+          values[1].Segment.Selector, values[1].Segment.Base,
+          values[1].Segment.Limit, SEGATTR(values[1].Segment));
+    pclog("  EFLAGS=0x%08llX CR0=0x%016llX CR3=0x%016llX CR4=0x%016llX\n",
+          values[2].Reg64, values[3].Reg64, values[4].Reg64,
+          values[5].Reg64);
+}
+
+/*
+ * Initialize VCPU registers for real-mode execution starting at the
+ * BIOS reset vector F000:FFF0.  This ensures WHPX sees valid segment
+ * descriptors and control register values when the CPU first runs.
+ */
+static int init_real_mode_registers(void)
+{
+    /* Initialize registers for real-mode boot at F000:FFF0 */
+    WHV_REGISTER_NAME regs[] = {
+        WHvX64RegisterRip,
+        WHvX64RegisterRflags,
+        WHvX64RegisterCr0,
+        WHvX64RegisterCr3,
+        WHvX64RegisterCr4,
+        WHvX64RegisterEfer,
+        WHvX64RegisterCs,
+        WHvX64RegisterSs,
+        WHvX64RegisterDs,
+        WHvX64RegisterEs,
+        WHvX64RegisterFs,
+        WHvX64RegisterGs,
+    };
+    WHV_REGISTER_VALUE vals[sizeof(regs)/sizeof(regs[0])];
+
+    const USHORT data_attr = 0x0093; /* data seg, present */
+    const USHORT code_attr = 0x009B; /* code seg, present */
+
+    memset(vals, 0, sizeof(vals));
+    vals[0].Reg64 = 0xFFF0;        /* RIP */
+    vals[1].Reg64 = 0x00000002;    /* RFLAGS */
+    vals[2].Reg64 = 0x00000010;    /* CR0 real mode */
+    vals[3].Reg64 = 0;             /* CR3 */
+    vals[4].Reg64 = 0;             /* CR4 */
+    vals[5].Reg64 = 0;             /* EFER */
+
+    /* CS segment */
+    vals[6].Segment.Selector   = 0xF000;
+    vals[6].Segment.Base       = 0xF0000;
+    vals[6].Segment.Limit      = 0xFFFF;
+    SEGATTR(vals[6].Segment)   = code_attr;
+
+    /* Data segments */
+    for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
+        vals[i].Segment.Selector   = 0;
+        vals[i].Segment.Base       = 0;
+        vals[i].Segment.Limit      = 0xFFFF;
+        SEGATTR(vals[i].Segment)   = data_attr;
+    }
+
+    HRESULT hr = WHvSetVirtualProcessorRegisters(
+        whpx_partition, whpx_vcpu_id, regs,
+        sizeof(regs)/sizeof(regs[0]), vals);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvSetVirtualProcessorRegisters", hr);
+        return -1;
+    }
+    pclog("whpx: VCPU registers initialized\n");
+    return 0;
+}
 
 int whpx_init(void)
 {
@@ -183,6 +275,8 @@ int whpx_vcpu_create(void)
         return -1;
     }
     whpx_vcpu_created = 1;
+    if (init_real_mode_registers() != 0)
+        return -1;
     return 0;
 }
 
@@ -418,6 +512,11 @@ int whpx_vcpu_run(void)
     if (whpx_sync_to_vcpu() != 0)
         return -1;
 
+    if (whpx_first_run) {
+        whpx_dump_vp_registers("before first run");
+        whpx_first_run = 0;
+    }
+
     HRESULT hr = WHvRunVirtualProcessor(whpx_partition, whpx_vcpu_id, &exit_ctx,
                                          sizeof(exit_ctx));
     if (FAILED(hr)) {
@@ -430,7 +529,19 @@ int whpx_vcpu_run(void)
 
     pclog("whpx: exit reason %u\n", exit_ctx.ExitReason);
 
+    /* Some common WHPX exit reasons for reference:
+       5 = WHvRunVpExitReasonInvalidVpRegisterValue
+       6 = WHvRunVpExitReasonUnsupportedFeature
+       7 = WHvRunVpExitReasonX64InterruptWindow
+       8 = WHvRunVpExitReasonX64Halt
+    */
+
     switch (exit_ctx.ExitReason) {
+    case WHvRunVpExitReasonInvalidVpRegisterValue:
+        pclog("whpx: \xE2\x9D\x8C Invalid VP register value (exit reason 5)\n");
+        /* Dump registers to help diagnose misconfigured segments */
+        whpx_dump_vp_registers("invalid register value");
+        return -1;
     case WHvRunVpExitReasonX64Halt:
         pclog("whpx: HLT encountered, continuing execution\n");
         if (cpu_state.pc == 0xFFF0) {

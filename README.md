@@ -55,6 +55,10 @@ If you instead see `WHvMapGpaRange failed: 0x80070057` your executable is
 probably 32-bit or the memory mapping is not 4 KB aligned. WHPX only works
 with 64-bit builds and requires addresses and sizes aligned to page boundaries.
 
+If PCem exits with `exit reason 5` when WHPX is enabled, the virtual CPU
+register values are invalid. PCem now initializes the real-mode startup state
+and prints a register dump to help diagnose such issues.
+
 then `./src/pcem` to run.
 
 On startup the emulator prints the path to the log file (usually
