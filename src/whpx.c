@@ -108,7 +108,7 @@ static void whpx_dump_vp_registers(const char *msg)
     WHV_REGISTER_NAME regs_to_dump[] = {
         WHvX64RegisterRip,
         WHvX64RegisterCs,
-        WHvX64RegisterEFlags,
+        WHvX64RegisterRflags,
         WHvX64RegisterCr0,
         WHvX64RegisterCr3,
         WHvX64RegisterCr4,
