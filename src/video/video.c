@@ -923,7 +923,7 @@ void loadfont(char *s, fontformat_t format) {
         FILE *f = romfopen(s, "rb");
         int c, d;
 
-        pclog("loadfont %i %s %p\n", format, s, f);
+        //        pclog("loadfont %i %s %p\n", format, s, f);
         if (!f) {
                 return;
         }

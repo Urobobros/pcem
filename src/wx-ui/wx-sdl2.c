@@ -503,7 +503,7 @@ int wx_start(void *hwnd) {
         for (c = 0; c < ROM_MAX; c++) {
                 romset = c;
                 romspresent[c] = loadbios();
-                pclog("romset %i - %i\n", c, romspresent[c]);
+                //        pclog("romset %i - %i\n", c, romspresent[c]);
         }
 
         for (c = 0; c < ROM_MAX; c++) {
