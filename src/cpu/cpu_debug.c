@@ -5,23 +5,7 @@
 #include <stdlib.h>
 
 static int log_count = 0;
-static int log_limit = -1;
-
-void cpu_log_state(const char *prefix) {
-#ifndef RELEASE_BUILD
-        if (log_limit == -1) {
-                const char *env = getenv("CPU_LOG_LIMIT");
-                if (env)
-                        log_limit = atoi(env);
-                else
-                        log_limit = 100;
-        }
-
-        if (log_limit >= 0 && log_count >= log_limit)
-=======
-
-static int log_count = 0;
-static int log_limit = 100;
+static int log_limit = 1000;
 
 void cpu_log_state(const char *prefix) {
 #ifndef RELEASE_BUILD
