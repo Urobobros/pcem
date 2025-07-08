@@ -368,6 +368,25 @@ int whpx_map_memory(void *mem, size_t size)
 #endif
         return -1;
     }
+
+    /* Map 128 KB of VGA memory (0xA0000-0xBFFFF) if RAM is large enough */
+    if (size < 0xC0000) {
+        pclog("whpx: RAM size below VGA window\n");
+    } else {
+        hr = WHvMapGpaRange(
+            whpx_partition,
+            (uint8_t *)whpx_ram + 0xA0000,
+            0xA0000,
+            0x20000,
+            WHvMapGpaRangeFlagRead |
+            WHvMapGpaRangeFlagWrite);
+        if (FAILED(hr)) {
+            whpx_log_hresult("WHvMapGpaRange (video RAM)", hr);
+            return -1;
+        } else {
+            pclog("whpx: VGA memory area 0xA0000-0xBFFFF mapped successfully\n");
+        }
+    }
     return 0;
 }
 
@@ -647,6 +666,9 @@ int whpx_vcpu_run(void)
 
     if (whpx_sync_from_vcpu(&exit_ctx) != 0)
         return -1;
+
+    if (cpu_state.pc >= 0xA0000 && cpu_state.pc <= 0xBFFFF)
+        pclog("whpx: PC in VGA memory: %05X\n", cpu_state.pc);
 
     pclog("whpx: exit reason %u\n", exit_ctx.ExitReason);
 
