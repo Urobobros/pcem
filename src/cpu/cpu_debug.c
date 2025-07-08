@@ -13,5 +13,6 @@ void cpu_log_state(const char *prefix) {
         log_count++;
         pclog("%s PC=%08X CS=%04X EAX=%08X EBX=%08X ECX=%08X EDX=%08X ESI=%08X EDI=%08X ESP=%08X EBP=%08X EFLAGS=%08X\n", prefix,
               cpu_state.pc, CS, EAX, EBX, ECX, EDX, ESI, EDI, ESP, EBP, cpu_state.eflags);
+
 #endif
 }
