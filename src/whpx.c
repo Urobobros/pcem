@@ -428,6 +428,7 @@ static int whpx_sync_to_vcpu(void)
     vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = CS;
     SEGATTR(vals[idx].Segment) = WHPX_REAL_MODE_CODE_ATTR; /* present, execute/read */
+
     idx++;
 
     regs[idx] = WHvX64RegisterDs;
