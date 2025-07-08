@@ -1378,7 +1378,10 @@ void mem_alloc() {
 #if defined(_WIN32) && defined(USE_WHPX)
         if (ram)
                 VirtualFree(ram, 0, MEM_RELEASE);
-        ram = VirtualAlloc(NULL, mem_size * 1024, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        /* Allocate executable memory so WHPX can map it with execute permissions */
+        ram = VirtualAlloc(NULL, mem_size * 1024,
+                           MEM_COMMIT | MEM_RESERVE,
+                           PAGE_EXECUTE_READWRITE);
 #else
         free(ram);
         ram = malloc(mem_size * 1024);

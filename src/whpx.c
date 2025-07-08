@@ -225,6 +225,9 @@ int whpx_map_rom(const void *mem, unsigned long long gpa, size_t size)
     /* Replace any existing mapping for this GPA range */
     WHvUnmapGpaRange(whpx_partition, gpa, size);
 
+    pclog("whpx: mapping ROM host=%p gpa=0x%llx size=0x%zx\n",
+          mem, gpa, size);
+
     HRESULT hr = WHvMapGpaRange(whpx_partition, (void *)mem, gpa, size,
                                  WHvMapGpaRangeFlagRead |
                                  WHvMapGpaRangeFlagExecute);
