@@ -182,6 +182,7 @@ static int init_real_mode_registers(void)
           (UINT32)vals[6].Segment.Base,
           SEGATTR(vals[6].Segment));
 
+
     /* Data segments */
     for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
         vals[i].Segment.Selector   = 0;
