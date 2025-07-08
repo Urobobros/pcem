@@ -3,6 +3,7 @@
 #include "x86.h"
 #include "cpu.h"
 #include "mem.h"
+#include "cpu_debug.h"
 #ifdef USE_WHPX
 #include "whpx.h"
 #endif
@@ -28,7 +29,9 @@ void cpu_backend_init(void) {
 void cpu_backend_exec(int cycle_count) {
 #ifdef USE_WHPX
         if (cpu_backend == CPU_BACKEND_WHPX) {
+                cpu_log_state("whpx: before run");
                 int rc = whpx_vcpu_run();
+                cpu_log_state("whpx: after run");
                 if (rc == 1)
                         return; /* HALT */
                 if (rc < 0)
@@ -37,10 +40,13 @@ void cpu_backend_exec(int cycle_count) {
         }
 #endif
         if (is386) {
-                if (cpu_use_dynarec)
+                if (cpu_use_dynarec) {
+                        cpu_log_state("dynarec: before exec");
                         exec386_dynarec(cycle_count);
-                else
+                        cpu_log_state("dynarec: after exec");
+                } else {
                         exec386(cycle_count);
+                }
         } else if (AT)
                 exec386(cycle_count);
         else
