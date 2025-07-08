@@ -409,6 +409,7 @@ int whpx_map_vga_memory(void *mem)
     return whpx_map_range(mem, 0xA0000, 0x20000);
 }
 
+
 void whpx_vcpu_destroy(void)
 {
     if (whpx_partition && whpx_vcpu_created) {
@@ -694,6 +695,7 @@ int whpx_vcpu_run(void) { return -1; }
 int whpx_map_memory(void *mem, size_t size) { return -1; }
 int whpx_map_range(void *mem, unsigned long long gpa, size_t size) { return -1; }
 int whpx_map_vga_memory(void *mem) { return -1; }
+
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */
