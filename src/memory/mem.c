@@ -27,6 +27,30 @@
 #include "cpu_backend.h"
 #include "whpx.h"
 #endif
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <execinfo.h>
+#endif
+
+static void log_stack_trace(void)
+{
+#if defined(_WIN32)
+    void *frames[16];
+    USHORT n = CaptureStackBackTrace(0, 16, frames, NULL);
+    for (USHORT i = 1; i < n; i++)
+        pclog("  [%u] %p\n", i, frames[i]);
+#else
+    void *frames[16];
+    int n = backtrace(frames, 16);
+    char **syms = backtrace_symbols(frames, n);
+    if (syms) {
+        for (int i = 1; i < n; i++)
+            pclog("  %s\n", syms[i]);
+        free(syms);
+    }
+#endif
+}
 
 /* Log the BIOS reset vector to help diagnose ROM mapping issues */
 static void log_bios_reset_vector(void)
@@ -478,6 +502,7 @@ uint8_t *getpccache(uint32_t a) {
 
         pclog("Bad getpccache %08X\n", a);
         cpu_log_state("Bad getpccache");
+        log_stack_trace();
         return &ff_array[0 - (uintptr_t)(a2 & ~0xFFF)];
 }
 
