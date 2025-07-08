@@ -441,7 +441,7 @@ int whpx_vcpu_run(void)
     default:
         pclog("whpx: unexpected exit reason %u\n", exit_ctx.ExitReason);
         /* Handle unrecognized exits with the interpreter */
-        return 0;
+        return -1;
     }
 }
 
