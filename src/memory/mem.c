@@ -77,6 +77,16 @@ static uint8_t ff_array[0x1000];
 #define WHPX_MAP_ROM(off, addr) do { } while (0)
 #endif
 
+#ifdef USE_WHPX
+#define WHPX_MAP_ROM(off, addr) \
+    do { \
+        if (cpu_backend == CPU_BACKEND_WHPX) \
+            whpx_map_rom(rom + ((off) & biosmask), (addr), 0x4000); \
+    } while (0)
+#else
+#define WHPX_MAP_ROM(off, addr) do { } while (0)
+#endif
+
 int mem_size;
 uint32_t biosmask;
 int readlnum = 0, writelnum = 0;
@@ -1270,7 +1280,6 @@ void mem_set_mem_state(uint32_t base, uint32_t size, int state) {
         mem_mapping_recalc(base, size);
 }
 
-void mem_add_bios() {
         if (AT || (romset == ROM_XI8088 && xi8088_bios_128kb())) {
                 mem_mapping_add(&bios_mapping[0], 0xe0000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x20000 & biosmask),
@@ -1405,6 +1414,7 @@ void mem_alloc() {
         ram = VirtualAlloc(NULL, mem_size * 1024,
                            MEM_COMMIT | MEM_RESERVE,
                            PAGE_EXECUTE_READWRITE);
+
 #else
         free(ram);
         ram = malloc(mem_size * 1024);

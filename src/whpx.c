@@ -433,6 +433,12 @@ int whpx_vcpu_run(void)
     switch (exit_ctx.ExitReason) {
     case WHvRunVpExitReasonX64Halt:
         pclog("whpx: HLT encountered, continuing execution\n");
+        if (cpu_state.pc == 0xFFF0) {
+            const uint8_t *p = rom + 0x3FFF0;
+            pclog("whpx: BIOS vector bytes: %02X %02X %02X %02X\n",
+                  p[0], p[1], p[2], p[3]);
+        }
+        /* continue execution so the interpreter can handle pending IRQs */
         return 0;
     case WHvRunVpExitReasonMemoryAccess:
     case WHvRunVpExitReasonX64IoPortAccess:
