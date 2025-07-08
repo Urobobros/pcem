@@ -14,6 +14,8 @@ int whpx_vcpu_run(void);
 int whpx_map_memory(void *mem, size_t size);
 int whpx_map_rom(const void *mem, unsigned long long gpa, size_t size);
 int whpx_map_range(void *mem, unsigned long long gpa, size_t size);
+int whpx_map_vga_memory(void *mem);
+
 
 #ifdef __cplusplus
 }

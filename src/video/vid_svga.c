@@ -792,7 +792,8 @@ int svga_init(svga_t *svga, void *p, int memsize, void (*recalctimings_ex)(struc
                         NULL, MEM_MAPPING_EXTERNAL, svga);
 #ifdef USE_WHPX
         if (cpu_backend == CPU_BACKEND_WHPX)
-                whpx_map_range(svga->vram, 0xA0000, 0x20000);
+                whpx_map_vga_memory(svga->vram);
+
 #endif
 
         timer_add(&svga->timer, svga_poll, svga, 1);
