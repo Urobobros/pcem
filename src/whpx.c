@@ -19,6 +19,10 @@
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
 #endif
 
+/* Attribute values for real-mode segments */
+#define WHPX_REAL_MODE_CODE_ATTR 0x009B /* present, exec/read, 16-bit */
+#define WHPX_REAL_MODE_DATA_ATTR 0x0093 /* present, read/write, 16-bit */
+
 struct whpx_hr_entry {
     HRESULT hr;
     const char *name;
@@ -157,8 +161,8 @@ static int init_real_mode_registers(void)
     };
     WHV_REGISTER_VALUE vals[sizeof(regs)/sizeof(regs[0])];
 
-    const USHORT data_attr = 0x0093; /* data seg, present */
-    const USHORT code_attr = 0x009B; /* code seg, present */
+    const USHORT data_attr = WHPX_REAL_MODE_DATA_ATTR;
+    const USHORT code_attr = WHPX_REAL_MODE_CODE_ATTR;
 
     memset(vals, 0, sizeof(vals));
     vals[0].Reg64 = 0xFFF0;        /* RIP */
@@ -173,6 +177,14 @@ static int init_real_mode_registers(void)
     vals[6].Segment.Base       = 0xF0000;
     vals[6].Segment.Limit      = 0xFFFF;
     SEGATTR(vals[6].Segment)   = code_attr;
+    cpu_state.seg_cs.seg       = 0xF000;
+    cpu_state.seg_cs.base      = 0xF0000;
+    cpu_state.seg_cs.limit     = 0xFFFF;
+    cpu_state.seg_cs.access    = code_attr & 0xFF;
+    pclog("whpx: Setting CS: selector=0x%04X base=0x%08X attr=0x%04X\n",
+          vals[6].Segment.Selector,
+          (UINT32)vals[6].Segment.Base,
+          SEGATTR(vals[6].Segment));
 
     /* Data segments */
     for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
@@ -180,6 +192,38 @@ static int init_real_mode_registers(void)
         vals[i].Segment.Base       = 0;
         vals[i].Segment.Limit      = 0xFFFF;
         SEGATTR(vals[i].Segment)   = data_attr;
+        switch (i) {
+        case 7: /* SS */
+            cpu_state.seg_ss.seg    = 0;
+            cpu_state.seg_ss.base   = 0;
+            cpu_state.seg_ss.limit  = 0xFFFF;
+            cpu_state.seg_ss.access = data_attr & 0xFF;
+            break;
+        case 8: /* DS */
+            cpu_state.seg_ds.seg    = 0;
+            cpu_state.seg_ds.base   = 0;
+            cpu_state.seg_ds.limit  = 0xFFFF;
+            cpu_state.seg_ds.access = data_attr & 0xFF;
+            break;
+        case 9: /* ES */
+            cpu_state.seg_es.seg    = 0;
+            cpu_state.seg_es.base   = 0;
+            cpu_state.seg_es.limit  = 0xFFFF;
+            cpu_state.seg_es.access = data_attr & 0xFF;
+            break;
+        case 10: /* FS */
+            cpu_state.seg_fs.seg    = 0;
+            cpu_state.seg_fs.base   = 0;
+            cpu_state.seg_fs.limit  = 0xFFFF;
+            cpu_state.seg_fs.access = data_attr & 0xFF;
+            break;
+        case 11: /* GS */
+            cpu_state.seg_gs.seg    = 0;
+            cpu_state.seg_gs.base   = 0;
+            cpu_state.seg_gs.limit  = 0xFFFF;
+            cpu_state.seg_gs.access = data_attr & 0xFF;
+            break;
+        }
     }
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
@@ -275,8 +319,12 @@ int whpx_vcpu_create(void)
         return -1;
     }
     whpx_vcpu_created = 1;
-    if (init_real_mode_registers() != 0)
+    pclog("whpx: Calling init_real_mode_registers()\n");
+    if (init_real_mode_registers() != 0) {
+        pclog("whpx: init_real_mode_registers failed\n");
         return -1;
+    }
+    whpx_dump_vp_registers("after init");
     return 0;
 }
 
@@ -370,48 +418,51 @@ static int whpx_sync_to_vcpu(void)
     vals[idx++].Reg64 = ESP;
 
     regs[idx] = WHvX64RegisterRflags;
-    vals[idx++].Reg64 = cpu_state.eflags;
+    /* Bit 1 of EFLAGS must always be set to 1 in x86. When the CPU is first
+     * reset cpu_state.eflags may be 0, so ensure the reserved bit is set to
+     * avoid WHPX rejecting the register state as invalid. */
+    vals[idx++].Reg64 = (cpu_state.eflags & ~1ULL) | 0x2ULL;
 
     regs[idx] = WHvX64RegisterCs;
     vals[idx].Segment.Base = cs;
-    vals[idx].Segment.Limit = cpu_state.seg_cs.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = CS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_cs.access;
+    SEGATTR(vals[idx].Segment) = WHPX_REAL_MODE_CODE_ATTR; /* present, execute/read */
     idx++;
 
     regs[idx] = WHvX64RegisterDs;
     vals[idx].Segment.Base = ds;
-    vals[idx].Segment.Limit = cpu_state.seg_ds.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = DS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_ds.access;
+    SEGATTR(vals[idx].Segment) = WHPX_REAL_MODE_DATA_ATTR; /* present, read/write */
     idx++;
 
     regs[idx] = WHvX64RegisterEs;
     vals[idx].Segment.Base = es;
-    vals[idx].Segment.Limit = cpu_state.seg_es.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = ES;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_es.access;
+    SEGATTR(vals[idx].Segment) = WHPX_REAL_MODE_DATA_ATTR;
     idx++;
 
     regs[idx] = WHvX64RegisterSs;
     vals[idx].Segment.Base = ss;
-    vals[idx].Segment.Limit = cpu_state.seg_ss.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = SS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_ss.access;
+    SEGATTR(vals[idx].Segment) = WHPX_REAL_MODE_DATA_ATTR;
     idx++;
 
     regs[idx] = WHvX64RegisterFs;
     vals[idx].Segment.Base = cpu_state.seg_fs.base;
-    vals[idx].Segment.Limit = cpu_state.seg_fs.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = FS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_fs.access;
+    SEGATTR(vals[idx].Segment) = WHPX_REAL_MODE_DATA_ATTR;
     idx++;
 
     regs[idx] = WHvX64RegisterGs;
     vals[idx].Segment.Base = cpu_state.seg_gs.base;
-    vals[idx].Segment.Limit = cpu_state.seg_gs.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = GS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_gs.access;
+    SEGATTR(vals[idx].Segment) = WHPX_REAL_MODE_DATA_ATTR;
     idx++;
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
