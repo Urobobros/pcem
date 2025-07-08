@@ -36,7 +36,14 @@ void cpu_backend_exec(int cycle_count) {
                         return; /* HALT */
                 if (rc < 0)
                         cpu_backend = CPU_BACKEND_RECOMP;
-                /* rc == 0 falls through to interpreter */
+                /* Unhandled exits are emulated using the interpreter */
+                if (rc >= 0) {
+                        if (is386 || AT)
+                                exec386(cycle_count);
+                        else
+                                execx86(cycle_count);
+                        return;
+                }
         }
 #endif
         if (is386) {
