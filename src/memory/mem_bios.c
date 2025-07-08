@@ -1,4 +1,7 @@
 #include <stdlib.h>
+#if defined(_WIN32) && defined(USE_WHPX)
+#include <windows.h>
+#endif
 #include "ibm.h"
 #include "mem.h"
 #include "mem_bios.h"
@@ -63,8 +66,16 @@ int loadbios() {
 
         biosmask = 0xffff;
 
-        if (!rom)
+        if (!rom) {
+#if defined(_WIN32) && defined(USE_WHPX)
+                /* BIOS must be executable when mapped through WHPX */
+                rom = VirtualAlloc(NULL, 0x40000,
+                                   MEM_COMMIT | MEM_RESERVE,
+                                   PAGE_EXECUTE_READWRITE);
+#else
                 rom = malloc(0x40000);
+#endif
+        }
         memset(romext, 0x63, 0x4000);
         memset(rom, 0xff, 0x20000);
 
