@@ -27,6 +27,27 @@
 #include "whpx.h"
 #endif
 
+/* Log the BIOS reset vector to help diagnose ROM mapping issues */
+static void log_bios_reset_vector(void)
+{
+    size_t bios_size = (size_t)biosmask + 1;
+    uint32_t offset = 0xFFFF0 & biosmask;
+    if (offset + 16 > bios_size) {
+        pclog("BIOS ROM too small for reset vector\n");
+        return;
+    }
+    const uint8_t *ptr = rom + offset;
+    pclog("BIOS reset vector bytes: %02X %02X %02X %02X\n",
+          ptr[0], ptr[1], ptr[2], ptr[3]);
+    if (ptr[0] == 0xEA) {
+        uint16_t off = ptr[1] | (ptr[2] << 8);
+        uint16_t seg = ptr[3] | (ptr[4] << 8);
+        pclog("BIOS JMP FAR %04X:%04X\n", seg, off);
+    } else if (ptr[0] == 0xF4) {
+        pclog("BIOS HLT instruction at reset vector\n");
+    }
+}
+
 page_t *pages;
 page_t **page_lookup;
 
@@ -1319,6 +1340,7 @@ void mem_add_bios() {
                                 MEM_MAPPING_ROM, 0);
                 WHPX_MAP_ROM(0x00000, (AT && cpu_16bitbus) ? 0xfc0000 : 0xfffc0000);
         }
+        log_bios_reset_vector();
 }
 
 int mem_a20_key = 0, mem_a20_alt = 0;
