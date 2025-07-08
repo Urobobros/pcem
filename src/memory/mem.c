@@ -18,6 +18,7 @@
 #include "video.h"
 #include "x86.h"
 #include "cpu.h"
+#include "cpu_debug.h"
 #include "rom.h"
 #include "x86_ops.h"
 #include "codegen.h"
@@ -476,6 +477,7 @@ uint8_t *getpccache(uint32_t a) {
         }
 
         pclog("Bad getpccache %08X\n", a);
+        cpu_log_state("Bad getpccache");
         return &ff_array[0 - (uintptr_t)(a2 & ~0xFFF)];
 }
 
