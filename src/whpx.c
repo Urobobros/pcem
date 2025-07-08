@@ -381,6 +381,21 @@ int whpx_map_rom(const void *mem, unsigned long long gpa, size_t size)
     return 0;
 }
 
+int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
+{
+    if (!whpx_partition)
+        return -1;
+
+    HRESULT hr = WHvMapGpaRange(whpx_partition, mem, gpa, size,
+                                 WHvMapGpaRangeFlagRead |
+                                 WHvMapGpaRangeFlagWrite);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvMapGpaRange(range)", hr);
+        return -1;
+    }
+    return 0;
+}
+
 void whpx_vcpu_destroy(void)
 {
     if (whpx_partition && whpx_vcpu_created) {
@@ -626,6 +641,7 @@ int whpx_vcpu_create(void) { return -1; }
 void whpx_vcpu_destroy(void) {}
 int whpx_vcpu_run(void) { return -1; }
 int whpx_map_memory(void *mem, size_t size) { return -1; }
+int whpx_map_range(void *mem, unsigned long long gpa, size_t size) { return -1; }
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */

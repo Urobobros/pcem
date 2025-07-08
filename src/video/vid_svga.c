@@ -9,6 +9,10 @@
 #include "io.h"
 #include "timer.h"
 #include "viewer.h"
+#include "cpu_backend.h"
+#ifdef USE_WHPX
+#include "whpx.h"
+#endif
 
 #define svga_output 0
 
@@ -786,6 +790,10 @@ int svga_init(svga_t *svga, void *p, int memsize, void (*recalctimings_ex)(struc
 
         mem_mapping_add(&svga->mapping, 0xa0000, 0x20000, svga_read, svga_readw, svga_readl, svga_write, svga_writew, svga_writel,
                         NULL, MEM_MAPPING_EXTERNAL, svga);
+#ifdef USE_WHPX
+        if (cpu_backend == CPU_BACKEND_WHPX)
+                whpx_map_range(svga->vram, 0xA0000, 0x20000);
+#endif
 
         timer_add(&svga->timer, svga_poll, svga, 1);
 
