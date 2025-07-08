@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
+
 #ifdef __MINGW32__
 /* MinGW headers expose segment attributes directly as a UINT16 field */
 #define SEGATTR(seg) ((seg).Attributes)
@@ -144,7 +145,8 @@ int main(void)
     }
 
     /* Allocate one page with a HLT instruction */
-    void *ram = VirtualAlloc(NULL, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    void *ram = VirtualAlloc(NULL, 0x1000, MEM_COMMIT | MEM_RESERVE,
+                             PAGE_READWRITE);
     if (!ram) {
         fprintf(stderr, "VirtualAlloc failed\n");
         WHvDeletePartition(partition);
@@ -169,10 +171,23 @@ int main(void)
         return 1;
     }
 
+    /* Map VGA memory range at 0xA0000 - 0xC0000 */
+    void *vga = VirtualAlloc(NULL, 0x20000, MEM_COMMIT | MEM_RESERVE,
+                             PAGE_READWRITE);
+    if (vga) {
+        hr = WHvMapGpaRange(partition, vga, 0xA0000, 0x20000,
+                            WHvMapGpaRangeFlagRead |
+                            WHvMapGpaRangeFlagWrite);
+        if (FAILED(hr)) {
+            log_hresult("WHvMapGpaRange (VGA)", hr);
+        }
+    }
+
     hr = WHvCreateVirtualProcessor(partition, 0, 0);
     if (FAILED(hr)) {
         log_hresult("WHvCreateVirtualProcessor", hr);
         VirtualFree(ram, 0, MEM_RELEASE);
+        VirtualFree(vga, 0, MEM_RELEASE);
         WHvDeletePartition(partition);
         return 1;
     }
@@ -208,6 +223,7 @@ int main(void)
         log_hresult("WHvSetVirtualProcessorRegisters", hr);
         WHvDeleteVirtualProcessor(partition, 0);
         VirtualFree(ram, 0, MEM_RELEASE);
+        VirtualFree(vga, 0, MEM_RELEASE);
         WHvDeletePartition(partition);
         return 1;
     }
@@ -222,8 +238,44 @@ int main(void)
         printf("Unexpected exit reason %u\n", exit_ctx.ExitReason);
     }
 
+    /* Dump registers for diagnostic purposes */
+    WHV_REGISTER_NAME dump_regs[] = {
+        WHvX64RegisterRip,
+        WHvX64RegisterCs,
+        WHvX64RegisterSs,
+        WHvX64RegisterDs,
+        WHvX64RegisterEs,
+        WHvX64RegisterFs,
+        WHvX64RegisterGs,
+        WHvX64RegisterRsp,
+        WHvX64RegisterCr0,
+        WHvX64RegisterCr3,
+        WHvX64RegisterCr4,
+        WHvX64RegisterRflags,
+        WHvX64RegisterEfer
+    };
+    WHV_REGISTER_VALUE reg_out[sizeof(dump_regs) / sizeof(dump_regs[0])] = {0};
+    hr = WHvGetVirtualProcessorRegisters(partition, 0, dump_regs,
+                                         sizeof(dump_regs) / sizeof(dump_regs[0]),
+                                         reg_out);
+    if (SUCCEEDED(hr)) {
+        printf("RIP=0x%llX  RSP=0x%llX  FLAGS=0x%llX  CS=0x%04X base=0x%llX attr=0x%04X\n",
+               reg_out[0].Reg64,
+               reg_out[7].Reg64,
+               reg_out[11].Reg64,
+               reg_out[1].Segment.Selector,
+               reg_out[1].Segment.Base,
+               SEGATTR(reg_out[1].Segment));
+        printf("CR0=0x%llX CR3=0x%llX CR4=0x%llX EFER=0x%llX\n",
+               reg_out[8].Reg64,
+               reg_out[9].Reg64,
+               reg_out[10].Reg64,
+               reg_out[12].Reg64);
+    }
+
     WHvDeleteVirtualProcessor(partition, 0);
     VirtualFree(ram, 0, MEM_RELEASE);
+    VirtualFree(vga, 0, MEM_RELEASE);
     WHvDeletePartition(partition);
     return 0;
 #else
