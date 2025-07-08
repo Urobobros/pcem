@@ -369,6 +369,7 @@ int whpx_map_memory(void *mem, size_t size)
         return -1;
     }
 
+
     /* Map 128 KB of VGA memory (0xA0000-0xBFFFF) if RAM is large enough */
     if (size < 0xC0000) {
         pclog("whpx: RAM size below VGA window\n");
