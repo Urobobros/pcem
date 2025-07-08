@@ -133,7 +133,12 @@ static void whpx_dump_vp_registers(const char *msg)
           values[5].Reg64);
 }
 
-static int whpx_init_vcpu_registers(void)
+/*
+ * Initialize VCPU registers for real-mode execution starting at the
+ * BIOS reset vector F000:FFF0.  This ensures WHPX sees valid segment
+ * descriptors and control register values when the CPU first runs.
+ */
+static int init_real_mode_registers(void)
 {
     /* Initialize registers for real-mode boot at F000:FFF0 */
     WHV_REGISTER_NAME regs[] = {
@@ -142,6 +147,7 @@ static int whpx_init_vcpu_registers(void)
         WHvX64RegisterCr0,
         WHvX64RegisterCr3,
         WHvX64RegisterCr4,
+        WHvX64RegisterEfer,
         WHvX64RegisterCs,
         WHvX64RegisterSs,
         WHvX64RegisterDs,
@@ -160,15 +166,16 @@ static int whpx_init_vcpu_registers(void)
     vals[2].Reg64 = 0x00000010;    /* CR0 real mode */
     vals[3].Reg64 = 0;             /* CR3 */
     vals[4].Reg64 = 0;             /* CR4 */
+    vals[5].Reg64 = 0;             /* EFER */
 
     /* CS segment */
-    vals[5].Segment.Selector   = 0xF000;
-    vals[5].Segment.Base       = 0xF0000;
-    vals[5].Segment.Limit      = 0xFFFF;
-    SEGATTR(vals[5].Segment)   = code_attr;
+    vals[6].Segment.Selector   = 0xF000;
+    vals[6].Segment.Base       = 0xF0000;
+    vals[6].Segment.Limit      = 0xFFFF;
+    SEGATTR(vals[6].Segment)   = code_attr;
 
     /* Data segments */
-    for (int i = 6; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
+    for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
         vals[i].Segment.Selector   = 0;
         vals[i].Segment.Base       = 0;
         vals[i].Segment.Limit      = 0xFFFF;
@@ -268,7 +275,7 @@ int whpx_vcpu_create(void)
         return -1;
     }
     whpx_vcpu_created = 1;
-    if (whpx_init_vcpu_registers() != 0)
+    if (init_real_mode_registers() != 0)
         return -1;
     return 0;
 }
