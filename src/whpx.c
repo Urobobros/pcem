@@ -461,6 +461,8 @@ int whpx_vcpu_run(void)
     if (whpx_sync_from_vcpu(&exit_ctx) != 0)
         return -1;
 
+    pclog("whpx: exit reason %u\n", exit_ctx.ExitReason);
+
     switch (exit_ctx.ExitReason) {
     case WHvRunVpExitReasonX64Halt:
         return 1;
@@ -468,8 +470,14 @@ int whpx_vcpu_run(void)
     case WHvRunVpExitReasonX64IoPortAccess:
         /* Unhandled exits will be emulated by the interpreter */
         return 0;
+#ifdef WHvRunVpExitReasonNone
+    case WHvRunVpExitReasonNone:
+        pclog("whpx: no exit reason provided; vCPU state unchanged\n");
+        return -1;
+#endif
     default:
-        return 0;
+        pclog("whpx: unexpected exit reason %u\n", exit_ctx.ExitReason);
+        return -1;
     }
 }
 
