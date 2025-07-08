@@ -1340,7 +1340,6 @@ void mem_add_bios() {
                                 MEM_MAPPING_ROM, 0);
                 WHPX_MAP_ROM(0x00000, (AT && cpu_16bitbus) ? 0xfc0000 : 0xfffc0000);
         }
-
         log_bios_reset_vector();
 }
 
