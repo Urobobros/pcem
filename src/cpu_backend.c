@@ -50,11 +50,20 @@ void cpu_backend_exec(int cycle_count) {
 void cpu_backend_memory_init(void) {
 #ifdef USE_WHPX
         if (cpu_backend == CPU_BACKEND_WHPX) {
+                whpx_vcpu_destroy();
+                whpx_deinit();
+                if (whpx_init() != 0) {
+                        pclog("whpx: reinitialization failed, falling back to interpreter\n");
+                        cpu_backend = CPU_BACKEND_RECOMP;
+                        return;
+                }
+
                 if (whpx_map_memory(ram, mem_size * 1024) != 0) {
                         pclog("whpx: memory mapping failed, falling back to interpreter\n");
                         cpu_backend = CPU_BACKEND_RECOMP;
                         return;
                 }
+
                 if (whpx_vcpu_create() != 0) {
                         pclog("whpx: vcpu creation failed, falling back to interpreter\n");
                         cpu_backend = CPU_BACKEND_RECOMP;
