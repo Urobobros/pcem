@@ -418,44 +418,44 @@ static int whpx_sync_to_vcpu(void)
 
     regs[idx] = WHvX64RegisterCs;
     vals[idx].Segment.Base = cs;
-    vals[idx].Segment.Limit = cpu_state.seg_cs.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = CS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_cs.access;
+    SEGATTR(vals[idx].Segment) = 0x009B; /* present, execute/read */
     idx++;
 
     regs[idx] = WHvX64RegisterDs;
     vals[idx].Segment.Base = ds;
-    vals[idx].Segment.Limit = cpu_state.seg_ds.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = DS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_ds.access;
+    SEGATTR(vals[idx].Segment) = 0x0093; /* present, read/write */
     idx++;
 
     regs[idx] = WHvX64RegisterEs;
     vals[idx].Segment.Base = es;
-    vals[idx].Segment.Limit = cpu_state.seg_es.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = ES;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_es.access;
+    SEGATTR(vals[idx].Segment) = 0x0093;
     idx++;
 
     regs[idx] = WHvX64RegisterSs;
     vals[idx].Segment.Base = ss;
-    vals[idx].Segment.Limit = cpu_state.seg_ss.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = SS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_ss.access;
+    SEGATTR(vals[idx].Segment) = 0x0093;
     idx++;
 
     regs[idx] = WHvX64RegisterFs;
     vals[idx].Segment.Base = cpu_state.seg_fs.base;
-    vals[idx].Segment.Limit = cpu_state.seg_fs.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = FS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_fs.access;
+    SEGATTR(vals[idx].Segment) = 0x0093;
     idx++;
 
     regs[idx] = WHvX64RegisterGs;
     vals[idx].Segment.Base = cpu_state.seg_gs.base;
-    vals[idx].Segment.Limit = cpu_state.seg_gs.limit;
+    vals[idx].Segment.Limit = 0xFFFF;
     vals[idx].Segment.Selector = GS;
-    SEGATTR(vals[idx].Segment) = cpu_state.seg_gs.access;
+    SEGATTR(vals[idx].Segment) = 0x0093;
     idx++;
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
