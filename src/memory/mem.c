@@ -22,6 +22,31 @@
 #include "x86_ops.h"
 #include "codegen.h"
 #include "xi8088.h"
+#ifdef USE_WHPX
+#include "cpu_backend.h"
+#include "whpx.h"
+#endif
+
+/* Log the BIOS reset vector to help diagnose ROM mapping issues */
+static void log_bios_reset_vector(void)
+{
+    size_t bios_size = (size_t)biosmask + 1;
+    uint32_t offset = 0xFFFF0 & biosmask;
+    if (offset + 16 > bios_size) {
+        pclog("BIOS ROM too small for reset vector\n");
+        return;
+    }
+    const uint8_t *ptr = rom + offset;
+    pclog("BIOS reset vector bytes: %02X %02X %02X %02X\n",
+          ptr[0], ptr[1], ptr[2], ptr[3]);
+    if (ptr[0] == 0xEA) {
+        uint16_t off = ptr[1] | (ptr[2] << 8);
+        uint16_t seg = ptr[3] | (ptr[4] << 8);
+        pclog("BIOS JMP FAR %04X:%04X\n", seg, off);
+    } else if (ptr[0] == 0xF4) {
+        pclog("BIOS HLT instruction at reset vector\n");
+    }
+}
 
 page_t *pages;
 page_t **page_lookup;
@@ -41,6 +66,16 @@ mem_mapping_t bios_high_mapping[9];
 static mem_mapping_t romext_mapping;
 
 static uint8_t ff_array[0x1000];
+
+#ifdef USE_WHPX
+#define WHPX_MAP_ROM(off, addr) \
+    do { \
+        if (cpu_backend == CPU_BACKEND_WHPX) \
+            whpx_map_rom(rom + ((off) & biosmask), (addr), 0x4000); \
+    } while (0)
+#else
+#define WHPX_MAP_ROM(off, addr) do { } while (0)
+#endif
 
 int mem_size;
 uint32_t biosmask;
@@ -1240,53 +1275,73 @@ void mem_add_bios() {
                 mem_mapping_add(&bios_mapping[0], 0xe0000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x20000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x20000, 0xe0000);
                 mem_mapping_add(&bios_mapping[1], 0xe4000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x24000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x24000, 0xe4000);
                 mem_mapping_add(&bios_mapping[2], 0xe8000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x28000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x28000, 0xe8000);
                 mem_mapping_add(&bios_mapping[3], 0xec000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x2c000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x2c000, 0xec000);
         }
         mem_mapping_add(&bios_mapping[4], 0xf0000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x30000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x30000, 0xf0000);
         mem_mapping_add(&bios_mapping[5], 0xf4000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x34000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x34000, 0xf4000);
         mem_mapping_add(&bios_mapping[6], 0xf8000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x38000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x38000, 0xf8000);
         mem_mapping_add(&bios_mapping[7], 0xfc000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x3c000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x3c000, 0xfc000);
 
         mem_mapping_add(&bios_high_mapping[0], (AT && cpu_16bitbus) ? 0xfe0000 : 0xfffe0000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x20000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x20000, (AT && cpu_16bitbus) ? 0xfe0000 : 0xfffe0000);
         mem_mapping_add(&bios_high_mapping[1], (AT && cpu_16bitbus) ? 0xfe4000 : 0xfffe4000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x24000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x24000, (AT && cpu_16bitbus) ? 0xfe4000 : 0xfffe4000);
         mem_mapping_add(&bios_high_mapping[2], (AT && cpu_16bitbus) ? 0xfe8000 : 0xfffe8000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x28000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x28000, (AT && cpu_16bitbus) ? 0xfe8000 : 0xfffe8000);
         mem_mapping_add(&bios_high_mapping[3], (AT && cpu_16bitbus) ? 0xfec000 : 0xfffec000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x2c000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x2c000, (AT && cpu_16bitbus) ? 0xfec000 : 0xfffec000);
         mem_mapping_add(&bios_high_mapping[4], (AT && cpu_16bitbus) ? 0xff0000 : 0xffff0000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x30000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x30000, (AT && cpu_16bitbus) ? 0xff0000 : 0xffff0000);
         mem_mapping_add(&bios_high_mapping[5], (AT && cpu_16bitbus) ? 0xff4000 : 0xffff4000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x34000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x34000, (AT && cpu_16bitbus) ? 0xff4000 : 0xffff4000);
         mem_mapping_add(&bios_high_mapping[6], (AT && cpu_16bitbus) ? 0xff8000 : 0xffff8000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x38000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x38000, (AT && cpu_16bitbus) ? 0xff8000 : 0xffff8000);
         mem_mapping_add(&bios_high_mapping[7], (AT && cpu_16bitbus) ? 0xffc000 : 0xffffc000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x3c000 & biosmask), MEM_MAPPING_ROM, 0);
-        if (biosmask == 0x3ffff)
+        WHPX_MAP_ROM(0x3c000, (AT && cpu_16bitbus) ? 0xffc000 : 0xffffc000);
+        if (biosmask == 0x3ffff) {
                 mem_mapping_add(&bios_high_mapping[8], (AT && cpu_16bitbus) ? 0xfc0000 : 0xfffc0000, 0x20000, mem_read_bios,
                                 mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll, rom,
                                 MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x00000, (AT && cpu_16bitbus) ? 0xfc0000 : 0xfffc0000);
+        }
+
+        log_bios_reset_vector();
 }
 
 int mem_a20_key = 0, mem_a20_alt = 0;
@@ -1346,7 +1401,10 @@ void mem_alloc() {
 #if defined(_WIN32) && defined(USE_WHPX)
         if (ram)
                 VirtualFree(ram, 0, MEM_RELEASE);
-        ram = VirtualAlloc(NULL, mem_size * 1024, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        /* Allocate executable memory so WHPX can map it with execute permissions */
+        ram = VirtualAlloc(NULL, mem_size * 1024,
+                           MEM_COMMIT | MEM_RESERVE,
+                           PAGE_EXECUTE_READWRITE);
 #else
         free(ram);
         ram = malloc(mem_size * 1024);
