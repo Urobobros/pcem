@@ -118,12 +118,6 @@ int whpx_init(void)
                           &written);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvGetCapability(HypervisorPresent)", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvGetCapability(HypervisorPresent) failed", hr);
-#else
-        pclog("whpx: WHvGetCapability(HypervisorPresent) failed: 0x%lx\n", hr);
-#endif
-
         return -1;
     }
 
@@ -137,12 +131,6 @@ int whpx_init(void)
     hr = WHvCreatePartition(&whpx_partition);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvCreatePartition", hr);
-
-#ifdef _WIN32
-        whpx_log_hresult("WHvCreatePartition failed", hr);
-#else
-        pclog("whpx: WHvCreatePartition failed: 0x%lx\n", hr);
-#endif
         return -1;
     }
 
@@ -152,24 +140,13 @@ int whpx_init(void)
                                  WHvPartitionPropertyCodeProcessorCount,
                                  &prop, sizeof(prop));
     if (FAILED(hr)) {
-
         whpx_log_hresult("WHvSetPartitionProperty", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvSetPartitionProperty failed", hr);
-#else
-        pclog("whpx: WHvSetPartitionProperty failed: 0x%lx\n", hr);
-#endif
         return -1;
     }
 
     hr = WHvSetupPartition(whpx_partition);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvSetupPartition", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvSetupPartition failed", hr);
-#else
-        pclog("whpx: WHvSetupPartition failed: 0x%lx\n", hr);
-#endif
         return -1;
     }
 
@@ -197,15 +174,10 @@ int whpx_vcpu_create(void)
     HRESULT hr = WHvCreateVirtualProcessor(whpx_partition, whpx_vcpu_id, 0);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvCreateVirtualProcessor", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvCreateVirtualProcessor failed", hr);
 #ifdef E_INVALIDARG
         if (hr == E_INVALIDARG)
             pclog("whpx: invalid arguments when creating the vCPU. "
                   "Ensure PCem is built for 64-bit and RAM is page aligned.\n");
-#endif
-#else
-        pclog("whpx: WHvCreateVirtualProcessor failed: 0x%lx\n", hr);
 #endif
         return -1;
     }
@@ -236,15 +208,28 @@ int whpx_map_memory(void *mem, size_t size)
                                  WHvMapGpaRangeFlagExecute);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvMapGpaRange", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvMapGpaRange failed", hr);
-#else
-        pclog("whpx: WHvMapGpaRange failed: 0x%lx\n", hr);
-#endif
 #ifdef E_INVALIDARG
         if (hr == E_INVALIDARG)
             pclog("whpx: buffer or size not 4 KB aligned or running 32-bit build\n");
 #endif
+        return -1;
+    }
+    return 0;
+}
+
+int whpx_map_rom(const void *mem, unsigned long long gpa, size_t size)
+{
+    if (!whpx_partition)
+        return -1;
+
+    /* Replace any existing mapping for this GPA range */
+    WHvUnmapGpaRange(whpx_partition, gpa, size);
+
+    HRESULT hr = WHvMapGpaRange(whpx_partition, (void *)mem, gpa, size,
+                                 WHvMapGpaRangeFlagRead |
+                                 WHvMapGpaRangeFlagExecute);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvMapGpaRange(ROM)", hr);
         return -1;
     }
     return 0;
@@ -256,13 +241,6 @@ void whpx_vcpu_destroy(void)
         HRESULT hr = WHvDeleteVirtualProcessor(whpx_partition, whpx_vcpu_id);
         if (FAILED(hr))
             whpx_log_hresult("WHvDeleteVirtualProcessor", hr);
-        if (FAILED(hr)) {
-#ifdef _WIN32
-            whpx_log_hresult("WHvDeleteVirtualProcessor failed", hr);
-#else
-            pclog("whpx: WHvDeleteVirtualProcessor failed: 0x%lx\n", hr);
-#endif
-        }
         whpx_vcpu_created = 0;
     }
 }
@@ -342,11 +320,6 @@ static int whpx_sync_to_vcpu(void)
         whpx_partition, whpx_vcpu_id, regs, idx, vals);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvSetVirtualProcessorRegisters", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvSetVirtualProcessorRegisters failed", hr);
-#else
-        pclog("whpx: WHvSetVirtualProcessorRegisters failed: 0x%lx\n", hr);
-#endif
         return -1;
     }
     return 0;
@@ -379,11 +352,6 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
         whpx_partition, whpx_vcpu_id, regs, idx, vals);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvGetVirtualProcessorRegisters", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvGetVirtualProcessorRegisters failed", hr);
-#else
-        pclog("whpx: WHvGetVirtualProcessorRegisters failed: 0x%lx\n", hr);
-#endif
         return -1;
     }
 
@@ -439,7 +407,7 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
 
 int whpx_vcpu_run(void)
 {
-    WHV_RUN_VP_EXIT_CONTEXT exit_ctx;
+    WHV_RUN_VP_EXIT_CONTEXT exit_ctx = {0};
     if (!whpx_partition)
         return -1;
 
@@ -450,11 +418,6 @@ int whpx_vcpu_run(void)
                                          sizeof(exit_ctx));
     if (FAILED(hr)) {
         whpx_log_hresult("WHvRunVirtualProcessor", hr);
-#ifdef _WIN32
-        whpx_log_hresult("WHvRunVirtualProcessor failed", hr);
-#else
-        pclog("whpx: WHvRunVirtualProcessor failed: 0x%lx\n", hr);
-#endif
         return -1;
     }
 
@@ -477,6 +440,7 @@ int whpx_vcpu_run(void)
 #endif
     default:
         pclog("whpx: unexpected exit reason %u\n", exit_ctx.ExitReason);
+        /* Handle unrecognized exits with the interpreter */
         return -1;
     }
 }
