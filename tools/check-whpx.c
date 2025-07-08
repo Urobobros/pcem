@@ -4,12 +4,16 @@
 #include <windows.h>
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
-#if defined(__MINGW32__) || defined(__MINGW64__)
-/* MinGW headers expose segment attributes in the Flags field */
-#define SEGATTR(seg) ((seg).Flags)
-#else
-/* Windows SDK headers wrap the attributes inside a union */
+
+#ifdef __MINGW32__
+/* MinGW headers expose segment attributes directly as a UINT16 field */
+#define SEGATTR(seg) ((seg).Attributes)
+#elif defined(_MSC_VER)
+/* MSVC Windows SDK wraps attributes inside a union */
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#else
+/* Older headers may use a Flags field */
+#define SEGATTR(seg) ((seg).Flags)
 #endif
 #endif
 

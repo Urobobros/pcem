@@ -15,9 +15,12 @@
 #ifdef __MINGW32__
 /* MinGW headers expose segment attributes directly as a UINT16 field */
 #define SEGATTR(seg) ((seg).Attributes)
-#else
-/* Windows SDK headers wrap the attributes inside a union */
+#elif defined(_MSC_VER)
+/* MSVC Windows SDK uses a nested union with AsUINT16 */
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#else
+/* Fallback for older headers using a Flags member */
+#define SEGATTR(seg) ((seg).Flags)
 #endif
 
 /* Attribute values for real-mode segments */
@@ -409,7 +412,6 @@ int whpx_map_vga_memory(void *mem)
     return whpx_map_range(mem, 0xA0000, 0x20000);
 }
 
-
 void whpx_vcpu_destroy(void)
 {
     if (whpx_partition && whpx_vcpu_created) {
@@ -695,7 +697,6 @@ int whpx_vcpu_run(void) { return -1; }
 int whpx_map_memory(void *mem, size_t size) { return -1; }
 int whpx_map_range(void *mem, unsigned long long gpa, size_t size) { return -1; }
 int whpx_map_vga_memory(void *mem) { return -1; }
-
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */
