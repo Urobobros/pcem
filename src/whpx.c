@@ -417,6 +417,12 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
     if (!whpx_partition)
         return -1;
 
+    /* Replace any existing mapping for this GPA range */
+    WHvUnmapGpaRange(whpx_partition, gpa, size);
+
+    pclog("whpx: mapping RAM host=%p gpa=0x%llx size=0x%zx\n",
+          mem, gpa, size);
+
     HRESULT hr = WHvMapGpaRange(whpx_partition, mem, gpa, size,
                                  WHvMapGpaRangeFlagRead |
                                  WHvMapGpaRangeFlagWrite);
