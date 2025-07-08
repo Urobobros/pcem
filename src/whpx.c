@@ -5,6 +5,7 @@
 #include "mem.h"
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -14,9 +15,12 @@
 #ifdef __MINGW32__
 /* MinGW headers expose segment attributes directly as a UINT16 field */
 #define SEGATTR(seg) ((seg).Attributes)
-#else
-/* Windows SDK headers wrap the attributes inside a union */
+#elif defined(_MSC_VER)
+/* MSVC Windows SDK uses a nested union with AsUINT16 */
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#else
+/* Fallback for older headers using a Flags member */
+#define SEGATTR(seg) ((seg).Flags)
 #endif
 
 /* Attribute values for real-mode segments */
@@ -107,6 +111,19 @@ static size_t whpx_ram_size = 0;
 static int whpx_vcpu_created = 0;
 static int whpx_first_run = 1;
 
+/* Helper for initializing segment register values */
+static void init_segment(WHV_REGISTER_VALUE *segment,
+                         uint16_t selector,
+                         uint64_t base,
+                         uint32_t limit,
+                         uint16_t attributes)
+{
+    segment->Segment.Selector = selector;
+    segment->Segment.Base = base;
+    segment->Segment.Limit = limit;
+    SEGATTR(segment->Segment) = attributes;
+}
+
 static void whpx_dump_vp_registers(const char *msg)
 {
     WHV_REGISTER_NAME regs_to_dump[] = {
@@ -173,10 +190,7 @@ static int init_real_mode_registers(void)
     vals[5].Reg64 = 0;             /* EFER */
 
     /* CS segment */
-    vals[6].Segment.Selector   = 0xF000;
-    vals[6].Segment.Base       = 0xF0000;
-    vals[6].Segment.Limit      = 0xFFFF;
-    SEGATTR(vals[6].Segment)   = code_attr;
+    init_segment(&vals[6], 0xF000, 0xF0000, 0xFFFF, code_attr);
     cpu_state.seg_cs.seg       = 0xF000;
     cpu_state.seg_cs.base      = 0xF0000;
     cpu_state.seg_cs.limit     = 0xFFFF;
@@ -188,10 +202,7 @@ static int init_real_mode_registers(void)
 
     /* Data segments */
     for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
-        vals[i].Segment.Selector   = 0;
-        vals[i].Segment.Base       = 0;
-        vals[i].Segment.Limit      = 0xFFFF;
-        SEGATTR(vals[i].Segment)   = data_attr;
+        init_segment(&vals[i], 0, 0, 0xFFFF, data_attr);
         switch (i) {
         case 7: /* SS */
             cpu_state.seg_ss.seg    = 0;
@@ -381,6 +392,26 @@ int whpx_map_rom(const void *mem, unsigned long long gpa, size_t size)
     return 0;
 }
 
+int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
+{
+    if (!whpx_partition)
+        return -1;
+
+    HRESULT hr = WHvMapGpaRange(whpx_partition, mem, gpa, size,
+                                 WHvMapGpaRangeFlagRead |
+                                 WHvMapGpaRangeFlagWrite);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvMapGpaRange(range)", hr);
+        return -1;
+    }
+    return 0;
+}
+
+int whpx_map_vga_memory(void *mem)
+{
+    return whpx_map_range(mem, 0xA0000, 0x20000);
+}
+
 void whpx_vcpu_destroy(void)
 {
     if (whpx_partition && whpx_vcpu_created) {
@@ -555,6 +586,41 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     return 0;
 }
 
+/* Ensure all segment descriptors remain marked present */
+static void ensure_valid_segments(void)
+{
+    WHV_REGISTER_NAME segs[] = {
+        WHvX64RegisterCs, WHvX64RegisterSs, WHvX64RegisterDs,
+        WHvX64RegisterEs, WHvX64RegisterFs, WHvX64RegisterGs};
+    WHV_REGISTER_VALUE vals[6];
+
+    HRESULT hr = WHvGetVirtualProcessorRegisters(
+        whpx_partition, whpx_vcpu_id, segs, 6, vals);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvGetVirtualProcessorRegisters", hr);
+        return;
+    }
+
+    bool changed = false;
+    for (int i = 0; i < 6; ++i) {
+        if (!(SEGATTR(vals[i].Segment) & 0x0080)) {
+            vals[i].Segment.Limit = 0xFFFF;
+            vals[i].Segment.Base = vals[i].Segment.Selector << 4;
+            SEGATTR(vals[i].Segment) |=
+                (i == 0 ? WHPX_REAL_MODE_CODE_ATTR : WHPX_REAL_MODE_DATA_ATTR) &
+                0x00F7;
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        hr = WHvSetVirtualProcessorRegisters(
+            whpx_partition, whpx_vcpu_id, segs, 6, vals);
+        if (FAILED(hr))
+            whpx_log_hresult("WHvSetVirtualProcessorRegisters", hr);
+    }
+}
+
 int whpx_vcpu_run(void)
 {
     WHV_RUN_VP_EXIT_CONTEXT exit_ctx = {0};
@@ -563,6 +629,9 @@ int whpx_vcpu_run(void)
 
     if (whpx_sync_to_vcpu() != 0)
         return -1;
+
+    /* Validate that all segment descriptors remain present */
+    ensure_valid_segments();
 
     if (whpx_first_run) {
         whpx_dump_vp_registers("before first run");
@@ -626,6 +695,8 @@ int whpx_vcpu_create(void) { return -1; }
 void whpx_vcpu_destroy(void) {}
 int whpx_vcpu_run(void) { return -1; }
 int whpx_map_memory(void *mem, size_t size) { return -1; }
+int whpx_map_range(void *mem, unsigned long long gpa, size_t size) { return -1; }
+int whpx_map_vga_memory(void *mem) { return -1; }
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */

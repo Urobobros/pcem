@@ -7,9 +7,12 @@
 #ifdef __MINGW32__
 /* MinGW headers expose segment attributes directly as a UINT16 field */
 #define SEGATTR(seg) ((seg).Attributes)
-#else
-/* Windows SDK headers wrap the attributes inside a union */
+#elif defined(_MSC_VER)
+/* MSVC Windows SDK wraps attributes inside a union */
 #define SEGATTR(seg) ((seg).Attributes.AsUINT16)
+#else
+/* Older headers may use a Flags field */
+#define SEGATTR(seg) ((seg).Flags)
 #endif
 #endif
 
