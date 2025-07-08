@@ -6,7 +6,8 @@
 #include "mem.h"
 #include "rom.h"
 #include "paths.h"
-#ifdef USE_WHPX
+#if defined(_WIN32) && defined(USE_WHPX)
+#include <windows.h>
 #include "cpu_backend.h"
 #include "whpx.h"
 #endif
@@ -61,7 +62,13 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
                 return -1;
         }
 
+#if defined(_WIN32) && defined(USE_WHPX)
+        /* WHPX requires guest memory to be page aligned and executable. */
+        rom->rom = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
+                               PAGE_EXECUTE_READWRITE);
+#else
         rom->rom = malloc(size);
+#endif
         fseek(f, file_offset, SEEK_SET);
         fread(rom->rom, size, 1, f);
         fclose(f);
@@ -96,7 +103,12 @@ int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t addre
                 return -1;
         }
 
+#if defined(_WIN32) && defined(USE_WHPX)
+        rom->rom = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
+                               PAGE_EXECUTE_READWRITE);
+#else
         rom->rom = malloc(size);
+#endif
         fseek(f_low, file_offset, SEEK_SET);
         fseek(f_high, file_offset, SEEK_SET);
         for (c = 0; c < size; c += 2) {
