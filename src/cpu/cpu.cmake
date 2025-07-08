@@ -62,5 +62,5 @@ set(PCEM_SRC ${PCEM_SRC}
         cpu/cpu_tables.c
         cpu/x86seg.c
         cpu/x87.c
-        cpu/x87_timings.c        cpu/cpu_debug.c
-        )
+        cpu/x87_timings.c
+        cpu/cpu_debug.c        )
