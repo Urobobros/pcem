@@ -79,7 +79,7 @@ int loadbios() {
         memset(romext, 0x63, 0x4000);
         memset(rom, 0xff, 0x20000);
 
-        pclog("Starting with romset %i\n", romset);
+        //        pclog("Starting with romset %i\n", romset);
 
         switch (romset) {
         case ROM_PC1512:
@@ -1287,7 +1287,7 @@ int loadbios() {
                 biosmask = 0x3ffff;
                 return 1;
         }
-        printf("Failed to load ROM!\n");
+        //printf("Failed to load ROM!\n");
         if (f)
                 fclose(f);
         if (ff)
