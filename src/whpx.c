@@ -173,6 +173,14 @@ static int init_real_mode_registers(void)
     vals[6].Segment.Base       = 0xF0000;
     vals[6].Segment.Limit      = 0xFFFF;
     SEGATTR(vals[6].Segment)   = code_attr;
+    cpu_state.seg_cs.seg       = 0xF000;
+    cpu_state.seg_cs.base      = 0xF0000;
+    cpu_state.seg_cs.limit     = 0xFFFF;
+    cpu_state.seg_cs.access    = code_attr & 0xFF;
+    pclog("whpx: Setting CS: selector=0x%04X base=0x%08X attr=0x%04X\n",
+          vals[6].Segment.Selector,
+          (UINT32)vals[6].Segment.Base,
+          SEGATTR(vals[6].Segment));
 
     /* Data segments */
     for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
@@ -180,6 +188,38 @@ static int init_real_mode_registers(void)
         vals[i].Segment.Base       = 0;
         vals[i].Segment.Limit      = 0xFFFF;
         SEGATTR(vals[i].Segment)   = data_attr;
+        switch (i) {
+        case 7: /* SS */
+            cpu_state.seg_ss.seg    = 0;
+            cpu_state.seg_ss.base   = 0;
+            cpu_state.seg_ss.limit  = 0xFFFF;
+            cpu_state.seg_ss.access = data_attr & 0xFF;
+            break;
+        case 8: /* DS */
+            cpu_state.seg_ds.seg    = 0;
+            cpu_state.seg_ds.base   = 0;
+            cpu_state.seg_ds.limit  = 0xFFFF;
+            cpu_state.seg_ds.access = data_attr & 0xFF;
+            break;
+        case 9: /* ES */
+            cpu_state.seg_es.seg    = 0;
+            cpu_state.seg_es.base   = 0;
+            cpu_state.seg_es.limit  = 0xFFFF;
+            cpu_state.seg_es.access = data_attr & 0xFF;
+            break;
+        case 10: /* FS */
+            cpu_state.seg_fs.seg    = 0;
+            cpu_state.seg_fs.base   = 0;
+            cpu_state.seg_fs.limit  = 0xFFFF;
+            cpu_state.seg_fs.access = data_attr & 0xFF;
+            break;
+        case 11: /* GS */
+            cpu_state.seg_gs.seg    = 0;
+            cpu_state.seg_gs.base   = 0;
+            cpu_state.seg_gs.limit  = 0xFFFF;
+            cpu_state.seg_gs.access = data_attr & 0xFF;
+            break;
+        }
     }
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
