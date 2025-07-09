@@ -62,6 +62,8 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
                 return -1;
         }
 
+        pclog("Loading ROM image : %s\n", fn);
+
 #if defined(_WIN32) && defined(USE_WHPX)
         /* WHPX requires guest memory to be page aligned and executable. */
         rom->rom = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
