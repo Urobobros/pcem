@@ -1645,12 +1645,13 @@ void debug_dump_vga_rom_signature(void)
 
     uint8_t sig0 = mem_readb_phys(0xC0000);
     uint8_t sig1 = mem_readb_phys(0xC0001);
+    uint8_t sig2 = mem_readb_phys(0xC0002);
+
+    printf("VGA ROM signature bytes: %02X %02X %02X\n", sig0, sig1, sig2);
 
     if (sig0 != 0x55 || sig1 != 0xAA) {
-        fprintf(stderr, "Error: VGA ROM signature invalid or not loaded.\n");
+        fprintf(stderr,
+                "Error: VGA ROM signature invalid or not loaded. Expected 55 AA\n");
         exit(1);
     }
-
-    printf("VGA ROM signature: %02X %02X %02X\n",
-           sig0, sig1, mem_readb_phys(0xC0002));
 }

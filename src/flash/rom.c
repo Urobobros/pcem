@@ -59,6 +59,7 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
 
         if (!f) {
                 pclog("ROM image not found : %s\n", fn);
+                error("Failed to open ROM image %s\n", fn);
                 return -1;
         }
 
@@ -70,6 +71,8 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
         if (file_size < file_offset + size) {
                 fclose(f);
                 pclog("ROM image %s is too small: %ld bytes, need %d\n", fn,
+                      file_size, file_offset + size);
+                error("ROM image %s is too small: %ld bytes, need %d\n", fn,
                       file_size, file_offset + size);
                 return -1;
         }
@@ -108,13 +111,15 @@ int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t addre
         int c;
 
         if (!f_low || !f_high) {
-                if (!f_low)
+                if (!f_low) {
                         pclog("ROM image not found : %s\n", fn_low);
-                else
+                        error("Failed to open ROM image %s\n", fn_low);
+                } else
                         fclose(f_low);
-                if (!f_high)
+                if (!f_high) {
                         pclog("ROM image not found : %s\n", fn_high);
-                else
+                        error("Failed to open ROM image %s\n", fn_high);
+                } else
                         fclose(f_high);
                 return -1;
         }
@@ -127,6 +132,8 @@ int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t addre
         int part_size = file_offset + size / 2;
         if (file_size_low < part_size || file_size_high < part_size) {
                 pclog("ROM image %s or %s is too small: low=%ld high=%ld, need %d\n",
+                      fn_low, fn_high, file_size_low, file_size_high, part_size);
+                error("ROM image %s or %s is too small: low=%ld high=%ld, need %d\n",
                       fn_low, fn_high, file_size_low, file_size_high, part_size);
                 fclose(f_low);
                 fclose(f_high);
