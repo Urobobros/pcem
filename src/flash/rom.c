@@ -64,6 +64,17 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
 
         pclog("Loading ROM image : %s\n", fn);
 
+        /* Verify file size to detect truncated ROMs */
+        fseek(f, 0, SEEK_END);
+        long file_size = ftell(f);
+        if (file_size < file_offset + size) {
+                fclose(f);
+                pclog("ROM image %s is too small: %ld bytes, need %d\n", fn,
+                      file_size, file_offset + size);
+                return -1;
+        }
+        fseek(f, file_offset, SEEK_SET);
+
 #if defined(_WIN32) && defined(USE_WHPX)
         /* WHPX requires guest memory to be page aligned and executable. */
         rom->rom = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
@@ -71,7 +82,6 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
 #else
         rom->rom = malloc(size);
 #endif
-        fseek(f, file_offset, SEEK_SET);
         fread(rom->rom, size, 1, f);
         fclose(f);
 
