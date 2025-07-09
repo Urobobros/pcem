@@ -377,6 +377,7 @@ void resetpchard() {
         if (cpu_backend == CPU_BACKEND_WHPX)
                 debug_dump_vga_memory();
 #endif
+        debug_dump_vga_rom_signature();
         speaker_init();
         lpt1_device_init();
 
