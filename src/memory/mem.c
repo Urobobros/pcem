@@ -1629,7 +1629,14 @@ void debug_dump_vga_memory(void)
     }
 }
 
-/* Helper to verify and print the VGA ROM signature bytes at 0xC0000 */
+/*
+ * Helper to verify the VGA ROM signature bytes at 0xC0000.
+ *
+ * Output format:
+ *   "VGA ROM signature bytes: <b0> <b1> <b2> (size=<computed>, mapped=<mapped> - <match|mismatch>)"
+ *   where <computed> is the ROM size in bytes (sig2 * 512) and <mapped>
+ *   is the size of the memory mapping installed by vga_init.
+ */
 void debug_dump_vga_rom_signature(void)
 {
     /*
@@ -1647,11 +1654,17 @@ void debug_dump_vga_rom_signature(void)
     uint8_t sig1 = mem_readb_phys(0xC0001);
     uint8_t sig2 = mem_readb_phys(0xC0002);
 
-    printf("VGA ROM signature bytes: %02X %02X %02X\n", sig0, sig1, sig2);
+    uint32_t rom_size = sig2 * 512;
+
+    mem_mapping_t *map = read_mapping[0xC0000 >> 14];
+    uint32_t mapped_size = map ? map->size : 0;
+
+    pclog("VGA ROM signature bytes: %02X %02X %02X (size=0x%X, mapped=0x%X - %s)\n",
+          sig0, sig1, sig2, rom_size, mapped_size,
+          (rom_size == mapped_size) ? "match" : "mismatch");
 
     if (sig0 != 0x55 || sig1 != 0xAA) {
-        fprintf(stderr,
-                "Error: VGA ROM signature invalid or not loaded. Expected 55 AA\n");
+        error("Error: VGA ROM signature invalid or not loaded. Expected 55 AA\n");
         exit(1);
     }
 }
