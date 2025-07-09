@@ -459,6 +459,11 @@ void *whpx_get_ram_base(void)
     return whpx_ram;
 }
 
+size_t whpx_get_ram_size(void)
+{
+    return whpx_ram_size;
+}
+
 void whpx_vcpu_destroy(void)
 {
     if (whpx_partition && whpx_vcpu_created) {
@@ -748,6 +753,7 @@ int whpx_map_memory(void *mem, size_t size) { return -1; }
 int whpx_map_range(void *mem, unsigned long long gpa, size_t size) { return -1; }
 int whpx_map_vga_memory(void *mem) { return -1; }
 void *whpx_get_ram_base(void) { return NULL; }
+size_t whpx_get_ram_size(void) { return 0; }
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */

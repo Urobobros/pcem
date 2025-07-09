@@ -16,6 +16,7 @@ int whpx_map_rom(const void *mem, unsigned long long gpa, size_t size);
 int whpx_map_range(void *mem, unsigned long long gpa, size_t size);
 int whpx_map_vga_memory(void *mem);
 void *whpx_get_ram_base(void);
+size_t whpx_get_ram_size(void);
 
 #ifdef __cplusplus
 }

@@ -510,8 +510,12 @@ uint8_t *getpccache(uint32_t a) {
 #ifdef USE_WHPX
         if (cpu_backend == CPU_BACKEND_WHPX) {
                 uint8_t *base = whpx_get_ram_base();
-                if (a < ram_size)
+                size_t size = whpx_get_ram_size();
+                if (a < size) {
+                        pclog("getpccache: addr=0x%X -> %p (ram base=%p size=0x%zX)\n",
+                              a, base + a, base, size);
                         return &base[a];
+                }
         } else
 #endif
         if (a < ram_size)
