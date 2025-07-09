@@ -261,7 +261,6 @@ void initpc(int argc, char *argv[]) {
         initvideo();
         mem_init();
         loadbios();
-
         // this is now done per-model
         // mem_add_bios();
 
