@@ -373,6 +373,10 @@ void resetpchard() {
         model_init();
         mouse_emu_init();
         video_init();
+#ifdef USE_WHPX
+        if (cpu_backend == CPU_BACKEND_WHPX)
+                debug_dump_vga_memory();
+#endif
         speaker_init();
         lpt1_device_init();
 
