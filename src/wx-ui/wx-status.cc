@@ -224,6 +224,7 @@ void resume_emulation();
 void pause_emulation();
 int stop_emulation_confirm();
 void reset_emulation();
+int start_emulation(void *);
 
 void hdconf_open(void *hwnd);
 void config_open(void *hwnd);
@@ -274,7 +275,10 @@ void StatusFrame::UpdateToolbar() {
 
 void StatusFrame::OnCommand(wxCommandEvent &event) {
         if (event.GetId() == XRCID("TOOLBAR_RUN")) {
-                resume_emulation();
+                if (emulation_state == EMULATION_STOPPED)
+                        start_emulation(GetParent());
+                else
+                        resume_emulation();
                 UpdateToolbar();
         } else if (event.GetId() == XRCID("TOOLBAR_PAUSE")) {
                 pause_emulation();
