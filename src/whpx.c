@@ -108,6 +108,7 @@ static WHV_PARTITION_HANDLE whpx_partition = NULL;
 static UINT32 whpx_vcpu_id = 0;
 static void *whpx_ram = NULL;
 static size_t whpx_ram_size = 0;
+static bool vga_memory_mapped = false;
 static int whpx_vcpu_created = 0;
 static int whpx_first_run = 1;
 
@@ -308,6 +309,7 @@ void whpx_deinit(void)
         whpx_partition = NULL;
         whpx_ram = NULL;
         whpx_ram_size = 0;
+        vga_memory_mapped = false;
     }
 }
 
@@ -352,6 +354,7 @@ int whpx_map_memory(void *mem, size_t size)
         HRESULT hr2 = WHvUnmapGpaRange(whpx_partition, 0, whpx_ram_size);
         if (FAILED(hr2))
             whpx_log_hresult("WHvUnmapGpaRange", hr2);
+        vga_memory_mapped = false;
     }
 
     whpx_ram = mem;
@@ -386,6 +389,7 @@ int whpx_map_memory(void *mem, size_t size)
             return -1;
         } else {
             pclog("whpx: VGA memory area 0xA0000-0xBFFFF mapped successfully\n");
+            vga_memory_mapped = true;
         }
     }
     return 0;
@@ -420,8 +424,12 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
     /* Replace any existing mapping for this GPA range */
     WHvUnmapGpaRange(whpx_partition, gpa, size);
 
-    pclog("whpx: mapping RAM host=%p gpa=0x%llx size=0x%zx\n",
-          mem, gpa, size);
+    uintptr_t addr = (uintptr_t)mem;
+    pclog("whpx: mapping RAM host=%p gpa=0x%llx size=0x%zx "
+          "(addr mod 4K=0x%lx gpa mod 4K=0x%llx size mod 4K=0x%lx)\n",
+          mem, gpa, size, addr & 0xfff, gpa & 0xfff,
+          (unsigned long)size & 0xfff);
+
 
     HRESULT hr = WHvMapGpaRange(whpx_partition, mem, gpa, size,
                                  WHvMapGpaRangeFlagRead |
@@ -435,7 +443,14 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
 
 int whpx_map_vga_memory(void *mem)
 {
-    return whpx_map_range(mem, 0xA0000, 0x20000);
+    if (vga_memory_mapped)
+        return 0;
+
+    if (whpx_map_range(mem, 0xA0000, 0x20000) == 0) {
+        vga_memory_mapped = true;
+        return 0;
+    }
+    return -1;
 }
 
 void whpx_vcpu_destroy(void)
