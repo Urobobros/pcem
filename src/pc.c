@@ -261,6 +261,7 @@ void initpc(int argc, char *argv[]) {
         initvideo();
         mem_init();
         loadbios();
+        debug_dump_vga_rom_signature();
 
         // this is now done per-model
         // mem_add_bios();
