@@ -213,6 +213,7 @@ void flushmmucache_cr3();
 
 /* Diagnostic helper to print the first bytes of VGA RAM */
 void debug_dump_vga_memory(void);
+void debug_dump_vga_rom_signature(void);
 
 void resetreadlookup();
 
