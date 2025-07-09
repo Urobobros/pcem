@@ -309,7 +309,7 @@ void pcem_add_device(device_t *d) {
         if (d->init != NULL) {
                 priv = d->init();
                 if (priv == NULL)
-                        fatal("device_add : device init failed\n");
+                        fatal("%s initialization failed\n", d->name);
         }
 
         devices[c] = d;
