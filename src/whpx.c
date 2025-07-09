@@ -430,6 +430,7 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
           mem, gpa, size, addr & 0xfff, gpa & 0xfff,
           (unsigned long)size & 0xfff);
 
+
     HRESULT hr = WHvMapGpaRange(whpx_partition, mem, gpa, size,
                                  WHvMapGpaRangeFlagRead |
                                  WHvMapGpaRangeFlagWrite);
