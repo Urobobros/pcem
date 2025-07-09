@@ -531,6 +531,17 @@ int video_is_ega_vga() {
         return (video_cards[video_old_to_new(gfxcard)]->flags & VIDEO_FLAG_TYPE_MASK) == VIDEO_FLAG_TYPE_SPECIAL;
 }
 
+/*
+ * Return non-zero when the current video card is expected to
+ * provide a VGA-compatible option ROM at 0xC0000. Cards such as
+ * MDA or CGA lack a VGA BIOS, so debug helpers probing the ROM
+ * should be skipped.
+ */
+int video_has_vga_rom()
+{
+        return video_is_ega_vga();
+}
+
 int video_fullscreen = 0, video_fullscreen_scale, video_fullscreen_first;
 int video_force_aspect_ration = 0;
 int vid_disc_indicator = 0;
