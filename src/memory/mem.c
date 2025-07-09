@@ -510,7 +510,8 @@ uint8_t *getpccache(uint32_t a) {
         if (a < ram_size)
                 return &ram[a];
 
-        pclog("Bad getpccache %08X\n", a);
+
+        pclog("getpccache: invalid access 0x%05X (outside RAM)\n", a);
         cpu_log_state("Bad getpccache");
         log_stack_trace();
         return &ff_array[0 - (uintptr_t)(a2 & ~0xFFF)];
@@ -1587,6 +1588,14 @@ void debug_dump_vga_memory(void)
             }
             if (32 % 16)
                 printf("\n");
+
+            for (int i = 0; i < 0x20000; i++) {
+                if (svga->vram[i] != 0x00) {
+                    printf("VGA RAM initialized: data at 0x%05X = %02X\n",
+                           0xA0000 + i, svga->vram[i]);
+                    break;
+                }
+            }
             return;
         }
     }
@@ -1599,14 +1608,27 @@ void debug_dump_vga_memory(void)
     }
     if (32 % 16)
         printf("\n");
+
+    for (int i = 0; i < 0x20000; i++) {
+        if (ram[0xA0000 + i] != 0x00) {
+            printf("VGA RAM initialized: data at 0x%05X = %02X\n",
+                   0xA0000 + i, ram[0xA0000 + i]);
+            break;
+        }
+    }
 }
 
-/* Helper to print the VGA ROM signature bytes at 0xC0000 */
+/* Helper to verify and print the VGA ROM signature bytes at 0xC0000 */
 void debug_dump_vga_rom_signature(void)
 {
     if (!ram) {
         printf("VGA ROM signature: RAM not allocated yet\n");
         return;
+    }
+
+    if (ram[0xC0000] != 0x55 || ram[0xC0001] != 0xAA) {
+        fprintf(stderr, "Error: VGA ROM signature invalid or not loaded.\n");
+        exit(1);
     }
 
     printf("VGA ROM signature: %02X %02X %02X\n",
