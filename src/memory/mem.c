@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #if defined(_WIN32) && defined(USE_WHPX)
 #include <windows.h>
 #endif
@@ -1556,3 +1557,20 @@ void mem_a20_recalc() {
 }
 
 uint32_t get_phys_virt, get_phys_phys;
+
+/*
+ * Dump the first 32 bytes of the VGA RAM region (0xA0000)
+ * This is a simple diagnostic helper to verify that the
+ * VGA framebuffer is correctly mapped and accessible.
+ */
+void debug_dump_vga_memory(void)
+{
+    printf("Dump VGA memory at ram + 0xA0000:\n");
+    for (int i = 0; i < 32; i++) {
+        printf("%02X ", ram[0xA0000 + i]);
+        if ((i + 1) % 16 == 0)
+            printf("\n");
+    }
+    if (32 % 16)
+        printf("\n");
+}
