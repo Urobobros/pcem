@@ -34,6 +34,7 @@ int video_get_video_from_internal_name(char *s);
 int video_is_mda();
 int video_is_cga();
 int video_is_ega_vga();
+int video_has_vga_rom();
 
 extern int video_fullscreen, video_fullscreen_scale, video_fullscreen_first;
 extern int video_force_aspect_ration;

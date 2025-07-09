@@ -372,11 +372,13 @@ void resetpchard() {
         model_init();
         mouse_emu_init();
         video_init();
+        if (video_has_vga_rom()) {
 #ifdef USE_WHPX
-        if (cpu_backend == CPU_BACKEND_WHPX)
-                debug_dump_vga_memory();
+                if (cpu_backend == CPU_BACKEND_WHPX)
+                        debug_dump_vga_memory();
 #endif
-        debug_dump_vga_rom_signature();
+                debug_dump_vga_rom_signature();
+        }
         speaker_init();
         lpt1_device_init();
 
