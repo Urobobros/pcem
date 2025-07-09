@@ -24,6 +24,7 @@
 
 /*Memory*/
 extern uint8_t *ram;
+extern size_t ram_size;
 
 extern uint32_t rammask;
 
