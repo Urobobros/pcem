@@ -413,6 +413,8 @@ int whpx_map_rom(const void *mem, unsigned long long gpa, size_t size)
         whpx_log_hresult("WHvMapGpaRange(ROM)", hr);
         return -1;
     }
+    pclog("whpx: ROM 0x%llx size=0x%zx mapped successfully, first bytes=%02X %02X\n",
+          gpa, size, ((const uint8_t *)mem)[0], ((const uint8_t *)mem)[1]);
     return 0;
 }
 
