@@ -1629,7 +1629,11 @@ void debug_dump_vga_memory(void)
     }
 }
 
-/* Helper to verify and print the VGA ROM signature bytes at 0xC0000 */
+/*
+ * Helper to verify and print the VGA ROM signature bytes at 0xC0000.
+ * If the card is not VGA/EGA or the first bytes are 0xFF or 0x00, the
+ * ROM likely isn't mapped so a message is printed and the function returns.
+ */
 void debug_dump_vga_rom_signature(void)
 {
     /*
@@ -1645,6 +1649,13 @@ void debug_dump_vga_rom_signature(void)
 
     uint8_t sig0 = mem_readb_phys(0xC0000);
     uint8_t sig1 = mem_readb_phys(0xC0001);
+
+    if (!video_is_ega_vga() ||
+        ((sig0 == 0xFF && sig1 == 0xFF) || (sig0 == 0x00 && sig1 == 0x00))) {
+        printf("No VGA BIOS found at 0xC0000\n");
+        return;
+    }
+
     uint8_t sig2 = mem_readb_phys(0xC0002);
 
     printf("VGA ROM signature bytes: %02X %02X %02X\n", sig0, sig1, sig2);
