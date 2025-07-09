@@ -62,6 +62,14 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
         fread(rom->rom, size, 1, f);
         fclose(f);
 
+        pclog("Loaded ROM image: %s\n", fn);
+        if (size >= 2) {
+                if (rom->rom[0] == 0x55 && rom->rom[1] == 0xaa)
+                        pclog("ROM signature valid (55 AA)\n");
+                else
+                        warning("ROM signature invalid for %s: %02X %02X\n", fn, rom->rom[0], rom->rom[1]);
+        }
+
         rom->mask = mask;
 
         mem_mapping_add(&rom->mapping, address, size, rom_read, rom_readw, rom_readl, mem_write_null, mem_write_nullw,
@@ -97,6 +105,14 @@ int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t addre
         }
         fclose(f_high);
         fclose(f_low);
+
+        pclog("Loaded ROM images: %s and %s\n", fn_low, fn_high);
+        if (size >= 2) {
+                if (rom->rom[0] == 0x55 && rom->rom[1] == 0xaa)
+                        pclog("ROM signature valid (55 AA)\n");
+                else
+                        warning("ROM signature invalid for %s/%s: %02X %02X\n", fn_low, fn_high, rom->rom[0], rom->rom[1]);
+        }
 
         rom->mask = mask;
 
