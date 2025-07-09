@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <stdio.h>
 #if defined(_WIN32) && defined(USE_WHPX)
 #include <windows.h>
@@ -110,6 +111,7 @@ int readlnum = 0, writelnum = 0;
 int cachesize = 256;
 
 uint8_t *ram, *rom = NULL;
+size_t ram_size = 0;
 uint8_t romext[32768];
 
 uint64_t *byte_dirty_mask;
@@ -493,6 +495,9 @@ uint8_t *getpccache(uint32_t a) {
         }
         a &= rammask;
 
+        if (a >= 0xA0000 && a < 0xC0000)
+                pclog("getpccache: VGA access at 0x%05X\n", a);
+
         if (_mem_exec[a >> 14]) {
                 if (read_mapping[a >> 14]->flags & MEM_MAPPING_ROM)
                         cpu_prefetch_cycles = cpu_rom_prefetch_cycles;
@@ -502,7 +507,10 @@ uint8_t *getpccache(uint32_t a) {
                 return &_mem_exec[a >> 14][(uintptr_t)(a & 0x3000) - (uintptr_t)(a2 & ~0xFFF)];
         }
 
-        pclog("Bad getpccache %08X\n", a);
+        if (a < ram_size)
+                return &ram[a];
+
+        pclog("getpccache: invalid access 0x%05X (outside RAM)\n", a);
         cpu_log_state("Bad getpccache");
         log_stack_trace();
         return &ff_array[0 - (uintptr_t)(a2 & ~0xFFF)];
@@ -1440,6 +1448,7 @@ void mem_alloc() {
         free(ram);
         ram = malloc(mem_size * 1024);
 #endif
+        ram_size = mem_size * 1024;
         memset(ram, 0, mem_size * 1024);
 
         free(byte_dirty_mask);
