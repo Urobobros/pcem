@@ -17,6 +17,7 @@
 #include "config.h"
 #include "mem.h"
 #include "video.h"
+#include "vid_svga.h"
 #include "x86.h"
 #include "cpu.h"
 #include "cpu_debug.h"
@@ -1565,6 +1566,22 @@ uint32_t get_phys_virt, get_phys_phys;
  */
 void debug_dump_vga_memory(void)
 {
+#ifdef USE_WHPX
+    if (cpu_backend == CPU_BACKEND_WHPX) {
+        svga_t *svga = svga_get_pri();
+        if (svga && svga->vram) {
+            printf("Dump VGA memory from svga->vram:\n");
+            for (int i = 0; i < 32; i++) {
+                printf("%02X ", svga->vram[i]);
+                if ((i + 1) % 16 == 0)
+                    printf("\n");
+            }
+            if (32 % 16)
+                printf("\n");
+            return;
+        }
+    }
+#endif
     printf("Dump VGA memory at ram + 0xA0000:\n");
     for (int i = 0; i < 32; i++) {
         printf("%02X ", ram[0xA0000 + i]);
