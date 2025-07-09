@@ -510,6 +510,7 @@ uint8_t *getpccache(uint32_t a) {
         if (a < ram_size)
                 return &ram[a];
 
+
         pclog("getpccache: invalid access 0x%05X (outside RAM)\n", a);
         cpu_log_state("Bad getpccache");
         log_stack_trace();
