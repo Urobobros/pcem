@@ -80,9 +80,13 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
         mem_mapping_add(&rom->mapping, address, size, rom_read, rom_readw, rom_readl, mem_write_null, mem_write_nullw,
                         mem_write_nulll, rom->rom, flags | MEM_MAPPING_ROM, rom);
 #ifdef USE_WHPX
-        if (cpu_backend == CPU_BACKEND_WHPX)
-                whpx_map_rom(rom->rom, address, size);
+        if (cpu_backend == CPU_BACKEND_WHPX) {
+                if (ram && address + size <= (unsigned)(mem_size * 1024))
+                        memcpy(ram + address, rom->rom, size);
+                whpx_map_range(ram + address, address, size);
+        } else
 #endif
+                (void)0;
 
         return 0;
 }
@@ -125,9 +129,13 @@ int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t addre
         mem_mapping_add(&rom->mapping, address, size, rom_read, rom_readw, rom_readl, mem_write_null, mem_write_nullw,
                         mem_write_nulll, rom->rom, flags | MEM_MAPPING_ROM, rom);
 #ifdef USE_WHPX
-        if (cpu_backend == CPU_BACKEND_WHPX)
-                whpx_map_rom(rom->rom, address, size);
+        if (cpu_backend == CPU_BACKEND_WHPX) {
+                if (ram && address + size <= (unsigned)(mem_size * 1024))
+                        memcpy(ram + address, rom->rom, size);
+                whpx_map_range(ram + address, address, size);
+        } else
 #endif
+                (void)0;
 
         return 0;
 }
