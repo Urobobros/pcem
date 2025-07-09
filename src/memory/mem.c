@@ -1595,6 +1595,11 @@ void debug_dump_vga_memory(void)
 /* Helper to print the VGA ROM signature bytes at 0xC0000 */
 void debug_dump_vga_rom_signature(void)
 {
+    if (!ram) {
+        printf("VGA ROM signature: RAM not allocated yet\n");
+        return;
+    }
+
     printf("VGA ROM signature: %02X %02X %02X\n",
            ram[0xC0000], ram[0xC0001], ram[0xC0002]);
 }

@@ -261,8 +261,6 @@ void initpc(int argc, char *argv[]) {
         initvideo();
         mem_init();
         loadbios();
-        debug_dump_vga_rom_signature();
-
         // this is now done per-model
         // mem_add_bios();
 
@@ -378,6 +376,7 @@ void resetpchard() {
         if (cpu_backend == CPU_BACKEND_WHPX)
                 debug_dump_vga_memory();
 #endif
+        debug_dump_vga_rom_signature();
         speaker_init();
         lpt1_device_init();
 
