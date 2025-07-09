@@ -102,7 +102,7 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
 }
 
 int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t address, int size, int mask, int file_offset,
-                         uint32_t flags) {
+                          uint32_t flags) {
         FILE *f_low = romfopen(fn_low, "rb");
         FILE *f_high = romfopen(fn_high, "rb");
         int c;
@@ -119,14 +119,28 @@ int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t addre
                 return -1;
         }
 
+        /* Ensure interleaved ROM parts are large enough */
+        fseek(f_low, 0, SEEK_END);
+        long file_size_low = ftell(f_low);
+        fseek(f_high, 0, SEEK_END);
+        long file_size_high = ftell(f_high);
+        int part_size = file_offset + size / 2;
+        if (file_size_low < part_size || file_size_high < part_size) {
+                pclog("ROM image %s or %s is too small: low=%ld high=%ld, need %d\n",
+                      fn_low, fn_high, file_size_low, file_size_high, part_size);
+                fclose(f_low);
+                fclose(f_high);
+                return -1;
+        }
+        fseek(f_low, file_offset, SEEK_SET);
+        fseek(f_high, file_offset, SEEK_SET);
+
 #if defined(_WIN32) && defined(USE_WHPX)
         rom->rom = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
                                PAGE_EXECUTE_READWRITE);
 #else
         rom->rom = malloc(size);
 #endif
-        fseek(f_low, file_offset, SEEK_SET);
-        fseek(f_high, file_offset, SEEK_SET);
         for (c = 0; c < size; c += 2) {
                 rom->rom[c] = getc(f_low);
                 rom->rom[c + 1] = getc(f_high);
