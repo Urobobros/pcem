@@ -507,6 +507,13 @@ uint8_t *getpccache(uint32_t a) {
                 return &_mem_exec[a >> 14][(uintptr_t)(a & 0x3000) - (uintptr_t)(a2 & ~0xFFF)];
         }
 
+#ifdef USE_WHPX
+        if (cpu_backend == CPU_BACKEND_WHPX) {
+                uint8_t *base = whpx_get_ram_base();
+                if (a < ram_size)
+                        return &base[a];
+        } else
+#endif
         if (a < ram_size)
                 return &ram[a];
 
@@ -1621,16 +1628,25 @@ void debug_dump_vga_memory(void)
 /* Helper to verify and print the VGA ROM signature bytes at 0xC0000 */
 void debug_dump_vga_rom_signature(void)
 {
+    /*
+     * The VGA BIOS might be stored in a separate ROM buffer rather than
+     * mirrored into the main RAM array.  Use physical memory reads so the
+     * check works regardless of backend or mapping strategy.
+     */
+
     if (!ram) {
         printf("VGA ROM signature: RAM not allocated yet\n");
         return;
     }
 
-    if (ram[0xC0000] != 0x55 || ram[0xC0001] != 0xAA) {
+    uint8_t sig0 = mem_readb_phys(0xC0000);
+    uint8_t sig1 = mem_readb_phys(0xC0001);
+
+    if (sig0 != 0x55 || sig1 != 0xAA) {
         fprintf(stderr, "Error: VGA ROM signature invalid or not loaded.\n");
         exit(1);
     }
 
     printf("VGA ROM signature: %02X %02X %02X\n",
-           ram[0xC0000], ram[0xC0001], ram[0xC0002]);
+           sig0, sig1, mem_readb_phys(0xC0002));
 }
