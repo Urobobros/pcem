@@ -201,14 +201,22 @@
 					<label>Direct3D</label>
 					<radio>1</radio>
 				</object>
-				<object class="wxMenuItem" name="IDM_VID_RENDER_DRIVER[2]">
-					<label>OpenGL</label>
-					<radio>1</radio>
-				</object>
-				<object class="wxMenuItem" name="IDM_VID_RENDER_DRIVER[6]">
-					<label>OpenGL 3.0</label>
-					<radio>1</radio>
-				</object>
+                                <object class="wxMenuItem" name="IDM_VID_RENDER_DRIVER[2]">
+                                        <label>OpenGL</label>
+                                        <radio>1</radio>
+                                </object>
+                                <object class="wxMenuItem" name="IDM_VID_RENDER_DRIVER[3]">
+                                        <label>OpenGL ES 2</label>
+                                        <radio>1</radio>
+                                </object>
+                                <object class="wxMenuItem" name="IDM_VID_RENDER_DRIVER[4]">
+                                        <label>OpenGL ES</label>
+                                        <radio>1</radio>
+                                </object>
+                                <object class="wxMenuItem" name="IDM_VID_RENDER_DRIVER[6]">
+                                        <label>OpenGL 3.0</label>
+                                        <radio>1</radio>
+                                </object>
 				<object class="wxMenuItem" name="IDM_VID_RENDER_DRIVER[5]">
 					<label>Software</label>
 					<radio>1</radio>
