@@ -59,6 +59,8 @@ int loadbios() {
         FILE *f = NULL, *ff = NULL;
         int c;
 
+        pclog("[ROM] Loading system BIOS\n");
+
         loadfont("mda.rom", FONT_MDA);
         loadfont("wy700.rom", FONT_WY700);
         loadfont("8x12.bin", FONT_MDSI);

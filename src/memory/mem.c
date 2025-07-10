@@ -1339,6 +1339,7 @@ void mem_add_bios() {
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
                 WHPX_MAP_ROM(0x2c000, 0xec000);
         }
+        pclog("[ROM] Mapping BIOS at 0xF0000\n");
         mem_mapping_add(&bios_mapping[4], 0xf0000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x30000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
         WHPX_MAP_ROM(0x30000, 0xf0000);
@@ -1448,6 +1449,8 @@ void mem_init() {
 void mem_alloc() {
         int c;
 
+        pclog("[MEM] Allocating %d KB of RAM\n", mem_size);
+
 #if defined(_WIN32) && defined(USE_WHPX)
         if (ram)
                 VirtualFree(ram, 0, MEM_RELEASE);
@@ -1535,9 +1538,11 @@ void mem_alloc() {
                                         MEM_MAPPING_INTERNAL, NULL);
                 }
         }
-        if (mem_size > 768) // 640k - 768k is graphics RAM
+        if (mem_size > 768) { // 640k - 768k is graphics RAM
+                pclog("[VGA] Mapping VGA window 0xA0000-0xBFFFF\n");
                 mem_mapping_add(&ram_mid_mapping, 0xa0000, 0x60000, mem_read_ram, mem_read_ramw, mem_read_raml, mem_write_ram,
                                 mem_write_ramw, mem_write_raml, ram + 0xa0000, MEM_MAPPING_INTERNAL, NULL);
+        }
 
         if (romset == ROM_IBMPS1_2011)
                 mem_mapping_add(&romext_mapping, 0xc8000, 0x08000, mem_read_romext, mem_read_romextw, mem_read_romextl, NULL,
@@ -1611,6 +1616,7 @@ void debug_dump_vga_memory(void)
         }
     }
 #endif
+    pclog("[CHECK] Verifying VGA RAM at 0xA0000\n");
     printf("Dump VGA memory at ram + 0xA0000:\n");
     for (int i = 0; i < 32; i++) {
         printf("%02X ", ram[0xA0000 + i]);
@@ -1659,6 +1665,8 @@ void debug_dump_vga_rom_signature(void)
     uint8_t sig2 = mem_readb_phys(0xC0002);
 
     printf("VGA ROM signature bytes: %02X %02X %02X\n", sig0, sig1, sig2);
+
+    pclog("[CHECK] VGA BIOS signature valid\n");
 
     if (sig0 != 0x55 || sig1 != 0xAA) {
         fprintf(stderr,
