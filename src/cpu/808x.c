@@ -26,6 +26,10 @@
 #include "timer.h"
 #include "x86.h"
 #include "x87.h"
+#ifdef USE_WHPX
+#include "cpu_backend.h"
+#include "whpx.h"
+#endif
 #include "paths.h"
 
 uint64_t xt_cpu_multi;
@@ -697,6 +701,10 @@ void resetx86() {
         codegen_reset();
         x86_was_reset = 1;
         cpu_state.smbase = 0x30000;
+#ifdef USE_WHPX
+        if (cpu_backend == CPU_BACKEND_WHPX)
+                whpx_reset_vcpu();
+#endif
 }
 
 void softresetx86() {
@@ -739,6 +747,10 @@ void softresetx86() {
         flushmmucache();
         x86_was_reset = 1;
         FETCHCLEAR();
+#ifdef USE_WHPX
+        if (cpu_backend == CPU_BACKEND_WHPX)
+                whpx_reset_vcpu();
+#endif
 }
 
 static void setznp8(uint8_t val) {
