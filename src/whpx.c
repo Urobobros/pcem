@@ -341,6 +341,14 @@ int whpx_vcpu_create(void)
     return 0;
 }
 
+int whpx_reset_vcpu(void)
+{
+    if (!whpx_partition || !whpx_vcpu_created)
+        return -1;
+    pclog("whpx: resetting VCPU state\n");
+    return init_real_mode_registers();
+}
+
 int whpx_map_memory(void *mem, size_t size)
 {
     if (!whpx_partition)
@@ -754,8 +762,10 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size) { return -1; 
 int whpx_map_vga_memory(void *mem) { return -1; }
 void *whpx_get_ram_base(void) { return NULL; }
 size_t whpx_get_ram_size(void) { return 0; }
+int whpx_reset_vcpu(void) { return -1; }
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */
 int whpx_dummy; /* avoid empty object file */
+int whpx_reset_vcpu(void) { return -1; }
 #endif /* USE_WHPX */
