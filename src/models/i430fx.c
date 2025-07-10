@@ -4,12 +4,40 @@
 #include "io.h"
 #include "keyboard_at.h"
 #include "mem.h"
+#ifdef USE_WHPX
+#include "whpx.h"
+#endif
 #include "pci.h"
 #include "x86.h"
 
 #include "i430fx.h"
 
 static uint8_t card_i430fx[256];
+
+#ifdef USE_WHPX
+static void pam_update(uint32_t addr, uint32_t size, int state)
+{
+    if (cpu_backend != CPU_BACKEND_WHPX)
+        return;
+
+    switch (state & 3) {
+    case 3:
+        whpx_map_range(ram + addr, addr, size);
+        break;
+    case 0:
+        whpx_unmap_range(addr, size);
+        break;
+    default:
+    {
+        uint32_t off = (addr - 0xe0000) + 0x20000;
+        whpx_map_rom(rom + (off & biosmask), addr, size);
+        break;
+    }
+    }
+}
+#else
+#define pam_update(addr,size,state) do { } while (0)
+#endif
 
 static void i430fx_map(uint32_t addr, uint32_t size, int state) {
         switch (state & 3) {
@@ -27,6 +55,7 @@ static void i430fx_map(uint32_t addr, uint32_t size, int state) {
                 break;
         }
         flushmmucache_nopc();
+        pam_update(addr, size, state);
 }
 
 void i430fx_write(int func, int addr, uint8_t val, void *priv) {
