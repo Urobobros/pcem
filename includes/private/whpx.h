@@ -20,6 +20,7 @@ size_t whpx_get_ram_size(void);
 int whpx_reset_vcpu(void);
 int whpx_unmap_range(unsigned long long gpa, size_t size);
 
+
 #ifdef __cplusplus
 }
 #endif
