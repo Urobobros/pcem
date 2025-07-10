@@ -19,14 +19,20 @@ void cpu_backend_init(void) {
                 pclog("Using WHPX backend\n");
         } else {
                 cpu_backend = CPU_BACKEND_RECOMP;
-                pclog("WHPX initialization failed, falling back to interpreter\n");
+                pclog("WHPX initialization failed, falling back to dynamic recompiler\n");
+                pclog("Using dynamic recompiler backend\n");
         }
 #else
-        pclog("WHPX support not compiled; using interpreter\n");
+        pclog("WHPX support not compiled; using dynamic recompiler backend\n");
 #endif
 }
 
 void cpu_backend_exec(int cycle_count) {
+        static int first = 1;
+        if (first) {
+                pclog("[CPU] Starting virtual CPU\n");
+                first = 0;
+        }
 #ifdef USE_WHPX
         if (cpu_backend == CPU_BACKEND_WHPX) {
                 cpu_log_state("whpx: before run");
@@ -71,6 +77,7 @@ void cpu_backend_memory_init(void) {
                         return;
                 }
 
+                pclog("[MEM] Mapping RAM into WHPX: %u MB\n", mem_size / 1024);
                 if (whpx_map_memory(ram, mem_size * 1024) != 0) {
                         pclog("whpx: memory mapping failed, falling back to interpreter\n");
                         cpu_backend = CPU_BACKEND_RECOMP;

@@ -193,6 +193,7 @@ void pc_reset() {
 #undef printf
 
 void initpc(int argc, char *argv[]) {
+        pclog("[BOOT] Starting PC initialization\n");
         // char *p;
         //        char *config_file = NULL;
         int c;
@@ -398,6 +399,7 @@ void resetpchard() {
                 device_add(&voodoo_device);
         hdd_controller_init(hdd_controller_name);
         pc_reset();
+        pclog("[BOOT] BIOS has taken control\n");
 
         resetide();
 
@@ -655,6 +657,7 @@ void loadconfig(char *fn) {
         p = (char *)config_get_string(CFG_MACHINE, NULL, "fpu", "none");
         fpu_type = fpu_get_type(model, cpu_manufacturer, cpu, p);
         cpu_use_dynarec = config_get_int(CFG_MACHINE, NULL, "cpu_use_dynarec", 0);
+        pclog("[CPU] Dynamic recompiler %s\n", cpu_use_dynarec ? "enabled" : "disabled");
         cpu_waitstates = config_get_int(CFG_MACHINE, NULL, "cpu_waitstates", 0);
 
         p = (char *)config_get_string(CFG_MACHINE, NULL, "gfxcard", "");
