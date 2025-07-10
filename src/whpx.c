@@ -784,4 +784,5 @@ int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
 int whpx_dummy; /* avoid empty object file */
 int whpx_reset_vcpu(void) { return -1; }
 int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
+
 #endif /* USE_WHPX */
