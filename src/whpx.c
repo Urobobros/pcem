@@ -341,6 +341,14 @@ int whpx_vcpu_create(void)
     return 0;
 }
 
+int whpx_reset_vcpu(void)
+{
+    if (!whpx_partition || !whpx_vcpu_created)
+        return -1;
+    pclog("whpx: resetting VCPU state\n");
+    return init_real_mode_registers();
+}
+
 int whpx_map_memory(void *mem, size_t size)
 {
     if (!whpx_partition)
@@ -437,6 +445,20 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
                                  WHvMapGpaRangeFlagWrite);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvMapGpaRange(range)", hr);
+        return -1;
+    }
+    return 0;
+}
+
+int whpx_unmap_range(unsigned long long gpa, size_t size)
+{
+    if (!whpx_partition)
+        return -1;
+
+    pclog("whpx: unmapping GPA 0x%llx size=0x%zx\n", gpa, size);
+    HRESULT hr = WHvUnmapGpaRange(whpx_partition, gpa, size);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvUnmapGpaRange", hr);
         return -1;
     }
     return 0;
@@ -703,7 +725,11 @@ int whpx_vcpu_run(void)
     if (cpu_state.pc >= 0xA0000 && cpu_state.pc <= 0xBFFFF)
         pclog("whpx: PC in VGA memory: %05X\n", cpu_state.pc);
 
-    pclog("whpx: exit reason %u\n", exit_ctx.ExitReason);
+    const char *area = mem_addr_is_rom(cpu_state.pc) ? "ROM" :
+                       (mem_addr_is_ram(cpu_state.pc) ? "RAM" : "???");
+    uint32_t ip = cpu_state.pc - cs;
+    pclog("whpx: GPA=0x%05X CS:IP=%04X:%04X area=%s exit=%u\n",
+          cpu_state.pc, CS, ip, area, exit_ctx.ExitReason);
 
     /* Some common WHPX exit reasons for reference:
        5 = WHvRunVpExitReasonInvalidVpRegisterValue
@@ -754,8 +780,12 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size) { return -1; 
 int whpx_map_vga_memory(void *mem) { return -1; }
 void *whpx_get_ram_base(void) { return NULL; }
 size_t whpx_get_ram_size(void) { return 0; }
+int whpx_reset_vcpu(void) { return -1; }
+int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */
 int whpx_dummy; /* avoid empty object file */
+int whpx_reset_vcpu(void) { return -1; }
+int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
 #endif /* USE_WHPX */

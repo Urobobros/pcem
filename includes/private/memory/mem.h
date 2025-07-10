@@ -140,6 +140,7 @@ void page_remove_from_evict_list(page_t *p);
 void page_add_to_evict_list(page_t *p);
 
 int mem_addr_is_ram(uint32_t addr);
+int mem_addr_is_rom(uint32_t addr);
 
 uint32_t mmutranslate_noabrt(uint32_t addr, int rw);
 extern uint32_t get_phys_virt, get_phys_phys;
