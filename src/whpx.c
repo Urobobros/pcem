@@ -782,10 +782,12 @@ void *whpx_get_ram_base(void) { return NULL; }
 size_t whpx_get_ram_size(void) { return 0; }
 int whpx_reset_vcpu(void) { return -1; }
 int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
+
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */
 int whpx_dummy; /* avoid empty object file */
 int whpx_reset_vcpu(void) { return -1; }
 int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
+
 #endif /* USE_WHPX */
