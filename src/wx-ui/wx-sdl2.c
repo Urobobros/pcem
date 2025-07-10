@@ -438,6 +438,10 @@ void sdl_onconfigloaded() {
 extern void wx_loadconfig();
 extern void wx_saveconfig();
 
+static int saved_argc;
+static char **saved_argv;
+static int pc_initialized = 0;
+
 int pc_main(int argc, char **argv) {
         // Expose some functions to libpcem-plugin-api without moving them over to
         // the plugin api proper
@@ -445,6 +449,9 @@ int pc_main(int argc, char **argv) {
         _dumppic = dumppic;
         _dumpregs = dumpregs;
         _sound_speed_changed = sound_speed_changed;
+
+        saved_argc = argc;
+        saved_argv = argv;
 
         paths_init();
         pclog_start();
@@ -462,16 +469,6 @@ int pc_main(int argc, char **argv) {
         add_config_callback(sdl_loadconfig, sdl_saveconfig, sdl_onconfigloaded);
         add_config_callback(wx_loadconfig, wx_saveconfig, 0);
 
-        initpc(argc, argv);
-        resetpchard();
-
-        sound_init();
-
-#ifndef __APPLE__
-        display_init();
-#endif
-        sdl_video_init();
-        joystick_init();
 
         return TRUE;
 }
@@ -538,6 +535,18 @@ int start_emulation(void *params) {
                 return TRUE;
         int c;
         pclog("Starting emulation...\n");
+
+        if (!pc_initialized) {
+                initpc(saved_argc, saved_argv);
+                sound_init();
+#ifndef __APPLE__
+                display_init();
+#endif
+                sdl_video_init();
+                joystick_init();
+                pc_initialized = 1;
+        }
+
         loadconfig(NULL);
 
         emulation_state = EMULATION_RUNNING;
