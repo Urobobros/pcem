@@ -727,7 +727,7 @@ int whpx_vcpu_run(void)
 
     const char *area = mem_addr_is_rom(cpu_state.pc) ? "ROM" :
                        (mem_addr_is_ram(cpu_state.pc) ? "RAM" : "???");
-    uint32_t ip = cpu_state.pc - cs;
+    uint32_t ip = (cpu_state.pc - cs) & 0xFFFF; /* real-mode offset */
     pclog("whpx: GPA=0x%05X CS:IP=%04X:%04X area=%s exit=%u\n",
           cpu_state.pc, CS, ip, area, exit_ctx.ExitReason);
 
