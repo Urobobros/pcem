@@ -16,6 +16,10 @@
 /* Older headers may use a Flags field */
 #define SEGATTR(seg) ((seg).Flags)
 #endif
+
+/* Real-mode segment attribute values */
+#define WHPX_REAL_MODE_CODE_ATTR 0x0093 /* execute/read */
+#define WHPX_REAL_MODE_DATA_ATTR 0x0092 /* read/write */
 #endif
 
 struct whpx_hr_entry {
@@ -226,7 +230,7 @@ int main(int argc, char **argv)
     reg_vals[n].Segment.Selector = 0;
     if (real_mode) {
         reg_vals[n].Segment.Limit = 0xFFFF;
-        SEGATTR(reg_vals[n].Segment) = 0x0093; /* 16-bit */
+        SEGATTR(reg_vals[n].Segment) = WHPX_REAL_MODE_CODE_ATTR; /* 16-bit */
     } else {
         reg_vals[n].Segment.Limit = 0xFFFFFFFF;
         SEGATTR(reg_vals[n].Segment) = 0xC09B; /* flat 32-bit */
@@ -248,7 +252,7 @@ int main(int argc, char **argv)
             reg_vals[n].Segment.Base = 0;
             reg_vals[n].Segment.Limit = 0xFFFF;
             reg_vals[n].Segment.Selector = 0;
-            SEGATTR(reg_vals[n].Segment) = 0x0092; /* data */
+            SEGATTR(reg_vals[n].Segment) = WHPX_REAL_MODE_DATA_ATTR; /* data */
             n++;
         }
 
