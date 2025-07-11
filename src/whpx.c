@@ -529,6 +529,13 @@ static int whpx_sync_to_vcpu(void)
      * avoid WHPX rejecting the register state as invalid. */
     vals[idx++].Reg64 = (cpu_state.eflags & ~1ULL) | 0x2ULL;
 
+    regs[idx] = WHvX64RegisterCr0;
+    vals[idx++].Reg64 = cr0;
+    regs[idx] = WHvX64RegisterCr3;
+    vals[idx++].Reg64 = cr3;
+    regs[idx] = WHvX64RegisterCr4;
+    vals[idx++].Reg64 = cr4;
+
     regs[idx] = WHvX64RegisterCs;
     vals[idx].Segment.Base = cs;
     vals[idx].Segment.Limit = 0xFFFF;
@@ -597,6 +604,9 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     regs[idx++] = WHvX64RegisterRbp;
     regs[idx++] = WHvX64RegisterRsp;
     regs[idx++] = WHvX64RegisterRflags;
+    regs[idx++] = WHvX64RegisterCr0;
+    regs[idx++] = WHvX64RegisterCr3;
+    regs[idx++] = WHvX64RegisterCr4;
     regs[idx++] = WHvX64RegisterCs;
     regs[idx++] = WHvX64RegisterDs;
     regs[idx++] = WHvX64RegisterEs;
@@ -622,6 +632,9 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     EBP = vals[idx++].Reg64;
     ESP = vals[idx++].Reg64;
     cpu_state.eflags = vals[idx++].Reg64;
+    uint32_t new_cr0 = vals[idx++].Reg64;
+    uint32_t new_cr3 = vals[idx++].Reg64;
+    uint32_t new_cr4 = vals[idx++].Reg64;
     cpu_state.seg_cs.base = vals[idx].Segment.Base;
     cpu_state.seg_cs.limit = vals[idx].Segment.Limit;
     cpu_state.seg_cs.seg = vals[idx].Segment.Selector;
@@ -657,6 +670,46 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     cpu_state.seg_gs.seg = vals[idx].Segment.Selector;
     cpu_state.seg_gs.access = SEGATTR(vals[idx].Segment);
     idx++;
+
+    uint32_t old_cr0 = cr0;
+    uint32_t old_cr3 = cr3;
+    uint32_t old_cr4 = cr4;
+    cr0 = new_cr0;
+    cr3 = new_cr3;
+    cr4 = new_cr4;
+    cpu_log_cr_change("CR0", old_cr0, cr0);
+    cpu_log_cr_change("CR3", old_cr3, cr3);
+    cpu_log_cr_change("CR4", old_cr4, cr4);
+    if ((cr0 ^ old_cr0) & 0x80000001)
+        flushmmucache();
+    else if (cr3 != old_cr3)
+        flushmmucache_cr3();
+
+    cpu_386_flags_extract();
+    cpu_cur_status = 0;
+    use32 = stack32 = 0;
+    if (cr0 & 1) {
+        cpu_cur_status |= CPU_STATUS_PMODE;
+        if (cpu_state.eflags & VM_FLAG)
+            cpu_cur_status |= CPU_STATUS_V86;
+        else {
+            if (cpu_state.seg_cs.access2 & 0x40) {
+                cpu_cur_status |= CPU_STATUS_USE32;
+                use32 = 0x300;
+            }
+            if (cpu_state.seg_ss.access2 & 0x40) {
+                cpu_cur_status |= CPU_STATUS_STACK32;
+                stack32 = 1;
+            }
+        }
+    }
+    if (!(cpu_state.seg_ds.base == 0 && cpu_state.seg_ds.limit_low == 0 &&
+          cpu_state.seg_ds.limit_high == 0xffffffff))
+        cpu_cur_status |= CPU_STATUS_NOTFLATDS;
+    if (!(cpu_state.seg_ss.base == 0 && cpu_state.seg_ss.limit_low == 0 &&
+          cpu_state.seg_ss.limit_high == 0xffffffff))
+        cpu_cur_status |= CPU_STATUS_NOTFLATSS;
+    cpu_log_mode_change();
 
     return 0;
 }
