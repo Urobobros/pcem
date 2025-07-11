@@ -201,24 +201,45 @@ int main(void)
     WHV_REGISTER_NAME reg_names[] = {
         WHvX64RegisterRip,
         WHvX64RegisterCs,
-        WHvX64RegisterRsp
+        WHvX64RegisterRsp,
+        WHvX64RegisterDs,
+        WHvX64RegisterEs,
+        WHvX64RegisterSs,
+        WHvX64RegisterFs,
+        WHvX64RegisterGs,
+        WHvX64RegisterCr0,
+        WHvX64RegisterRflags
     };
-    WHV_REGISTER_VALUE reg_vals[3] = {0};
+    WHV_REGISTER_VALUE reg_vals[10] = {0};
 
     /* RIP starts at GPA 0 where we placed the HLT instruction. */
     reg_vals[0].Reg64 = 0;
 
-    /* Minimal flat code segment descriptor. */
+    /* Minimal real-mode code segment descriptor. */
     reg_vals[1].Segment.Base = 0;
-    reg_vals[1].Segment.Limit = 0xFFFFFFFF;
+    reg_vals[1].Segment.Limit = 0xFFFF;
     reg_vals[1].Segment.Selector = 0;
-    SEGATTR(reg_vals[1].Segment) = 0xC09B; /* 32-bit code, present, ring 0 */
+    SEGATTR(reg_vals[1].Segment) = 0x0093; /* 16-bit code, present, ring 0 */
 
     /* Provide a stack pointer within the mapped page. */
     reg_vals[2].Reg64 = 0x800;
 
+    /* Data segments. */
+    for (int i = 3; i <= 7; i++) {
+        reg_vals[i].Segment.Base = 0;
+        reg_vals[i].Segment.Limit = 0xFFFF;
+        reg_vals[i].Segment.Selector = 0;
+        SEGATTR(reg_vals[i].Segment) = 0x0092;
+    }
+
+    /* Real mode CR0 and default RFLAGS value. */
+    reg_vals[8].Reg64 = 0x10;
+    reg_vals[9].Reg64 = 0x2;
+
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
-                                         reg_names, 3, reg_vals);
+                                         reg_names,
+                                         sizeof(reg_names) / sizeof(reg_names[0]),
+                                         reg_vals);
     if (FAILED(hr)) {
         log_hresult("WHvSetVirtualProcessorRegisters", hr);
         WHvDeleteVirtualProcessor(partition, 0);
