@@ -12,6 +12,7 @@
 #include "paths.h"
 #include "i440bx.h"
 #include "logging-internal.h"
+#include "cpu_debug.h"
 
 /*Controls whether the accessed bit in a descriptor is set when CS is loaded.*/
 #define CS_ACCESSED
@@ -210,6 +211,9 @@ static void do_seg_load(x86seg *s, uint16_t *segdat) {
                 else
                         cpu_cur_status |= CPU_STATUS_NOTFLATSS;
         }
+
+        if (s == &cpu_state.seg_cs)
+                cpu_log_cs_segment("segment update");
 }
 
 static void do_seg_v86_init(x86seg *s) {
@@ -2396,6 +2400,10 @@ void taskswitch286(uint16_t seg, uint16_t *segdat, int is32) {
         uint32_t templ;
         uint16_t tempw;
 
+        uint32_t old_cr0 = cr0;
+        uint32_t old_cr3 = cr3;
+        uint32_t old_cr4 = cr4;
+
         uint32_t new_cr3 = 0;
         uint16_t new_es, new_cs, new_ss, new_ds, new_fs, new_gs;
         uint16_t new_ldt;
@@ -2514,8 +2522,10 @@ void taskswitch286(uint16_t seg, uint16_t *segdat, int is32) {
                 new_ldt = readmemw(base, 0x60);
 
                 cr0 |= 8;
+                cpu_log_cr_change("CR0", old_cr0, cr0);
 
                 cr3 = new_cr3;
+                cpu_log_cr_change("CR3", old_cr3, cr3);
                 //                pclog("TS New CR3 %08X\n",cr3);
                 flushmmucache();
 
@@ -2994,6 +3004,7 @@ void x86_smi_enter(void) {
         cpu_386_flags_rebuild();
         cpl_override = 1;
         cr0 = 0; /*Disable MMU*/
+        cpu_log_cr_change("CR0", old_cr0, cr0);
 
         if (cpu_iscyrix) {
                 uint32_t base;
@@ -3096,6 +3107,9 @@ void x86_smi_enter(void) {
 void x86_smi_leave(void) {
         uint32_t temp;
         uint32_t new_cr0;
+        uint32_t old_cr0 = cr0;
+        uint32_t old_cr3 = cr3;
+        uint32_t old_cr4 = cr4;
 
         if (cpu_iscyrix) {
                 uint32_t base = cyrix.smhr & SMHR_ADDR_MASK;
@@ -3111,10 +3125,12 @@ void x86_smi_leave(void) {
                 cpl_override = 0;
 
                 cr0 = new_cr0;
+                cpu_log_cr_change("CR0", old_cr0, cr0);
         } else {
                 cpl_override = 1;
                 new_cr0 = readmeml(0, cpu_state.smbase + 0x8000 + 0x7ffc);
                 cr3 = readmeml(0, cpu_state.smbase + 0x8000 + 0x7ff8);
+                cpu_log_cr_change("CR3", old_cr3, cr3);
                 temp = readmeml(0, cpu_state.smbase + 0x8000 + 0x7ff4);
                 cpu_state.flags = temp & 0xffff;
                 cpu_state.eflags = temp >> 16;
@@ -3148,10 +3164,12 @@ void x86_smi_leave(void) {
                 smi_load_descriptor_cache(cpu_state.smbase + 0x8000 + 0x7f3c, &cpu_state.seg_cs);
                 smi_load_descriptor_cache(cpu_state.smbase + 0x8000 + 0x7f30, &cpu_state.seg_es);
                 cr4 = readmeml(0, cpu_state.smbase + 0x8000 + 0x7f28);
+                cpu_log_cr_change("CR4", old_cr4, cr4);
                 cpu_state.smbase = readmeml(0, cpu_state.smbase + 0x8000 + 0x7ef8);
                 cpl_override = 0;
 
                 cr0 = new_cr0;
+                cpu_log_cr_change("CR0", old_cr0, cr0);
         }
 
         cpu_386_flags_extract();
@@ -3176,6 +3194,8 @@ void x86_smi_leave(void) {
                 cpu_cur_status |= CPU_STATUS_NOTFLATDS;
         if (!(cpu_state.seg_ss.base == 0 && cpu_state.seg_ss.limit_low == 0 && cpu_state.seg_ss.limit_high == 0xffffffff))
                 cpu_cur_status |= CPU_STATUS_NOTFLATSS;
+
+        cpu_log_mode_change();
 
         if (smram_disable)
                 smram_disable();

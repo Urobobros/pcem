@@ -18,6 +18,7 @@
 #include "disc.h"
 #include "disc_img.h"
 #include "mem.h"
+#include "cpu_debug.h"
 #include "x86_ops.h"
 #include "codegen.h"
 #include "cdrom-null.h"
@@ -262,6 +263,8 @@ void initpc(int argc, char *argv[]) {
         initvideo();
         mem_init();
         loadbios();
+        mem_record_bios_crc();
+        cpu_log_set_json(1);
         // this is now done per-model
         // mem_add_bios();
 

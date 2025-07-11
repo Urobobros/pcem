@@ -18,6 +18,7 @@
 #include "config.h"
 #include "mem.h"
 #include "video.h"
+#include "hdd/minivhd/minivhd_util.h"
 #include "vid_svga.h"
 #include "x86.h"
 #include "cpu.h"
@@ -118,6 +119,7 @@ uint64_t *byte_dirty_mask;
 uint64_t *byte_code_present_mask;
 
 uint32_t mem_logical_addr;
+static uint32_t bios_crc_ref;
 
 void (*smram_enable)(void);
 void (*smram_disable)(void);
@@ -1054,14 +1056,20 @@ void mem_write_raml_page(uint32_t addr, uint32_t val, page_t *p) {
 
 void mem_write_ram(uint32_t addr, uint8_t val, void *priv) {
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramb_page(addr, val, &pages[addr >> 12]);
 }
 void mem_write_ramw(uint32_t addr, uint16_t val, void *priv) {
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramw_page(addr, val, &pages[addr >> 12]);
 }
 void mem_write_raml(uint32_t addr, uint32_t val, void *priv) {
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_raml_page(addr, val, &pages[addr >> 12]);
 }
 
@@ -1087,18 +1095,24 @@ void mem_write_remapped(uint32_t addr, uint8_t val, void *priv) {
         uint32_t oldaddr = addr;
         addr = 0xA0000 + (addr - remap_start_addr);
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramb_page(addr, val, &pages[oldaddr >> 12]);
 }
 void mem_write_remappedw(uint32_t addr, uint16_t val, void *priv) {
         uint32_t oldaddr = addr;
         addr = 0xA0000 + (addr - remap_start_addr);
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramw_page(addr, val, &pages[oldaddr >> 12]);
 }
 void mem_write_remappedl(uint32_t addr, uint32_t val, void *priv) {
         uint32_t oldaddr = addr;
         addr = 0xA0000 + (addr - remap_start_addr);
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_raml_page(addr, val, &pages[oldaddr >> 12]);
 }
 
@@ -1119,9 +1133,18 @@ uint8_t mem_read_romext(uint32_t addr, void *priv) { return romext[addr & 0x7fff
 uint16_t mem_read_romextw(uint32_t addr, void *priv) { return *(uint16_t *)&romext[addr & 0x7fff]; }
 uint32_t mem_read_romextl(uint32_t addr, void *priv) { return *(uint32_t *)&romext[addr & 0x7fff]; }
 
-void mem_write_null(uint32_t addr, uint8_t val, void *p) {}
-void mem_write_nullw(uint32_t addr, uint16_t val, void *p) {}
-void mem_write_nulll(uint32_t addr, uint32_t val, void *p) {}
+void mem_write_null(uint32_t addr, uint8_t val, void *p)
+{
+        cpu_log_oob_access("WRITE8", addr);
+}
+void mem_write_nullw(uint32_t addr, uint16_t val, void *p)
+{
+        cpu_log_oob_access("WRITE16", addr);
+}
+void mem_write_nulll(uint32_t addr, uint32_t val, void *p)
+{
+        cpu_log_oob_access("WRITE32", addr);
+}
 
 void mem_invalidate_range(uint32_t start_addr, uint32_t end_addr) {
         start_addr &= ~PAGE_MASK_MASK;
@@ -1416,6 +1439,8 @@ static void mem_remap_top(int max_size) {
 
                 remap_start_addr = start * 1024;
 
+                cpu_dump_memory("shadow_before", ram + (start * 1024), start * 1024, size * 1024);
+
                 for (c = ((start * 1024) >> 12); c < (((start + size) * 1024) >> 12); c++) {
                         int offset = c - ((start * 1024) >> 12);
                         pages[c].mem = &ram[0xA0000 + (offset << 12)];
@@ -1431,6 +1456,11 @@ static void mem_remap_top(int max_size) {
                 mem_mapping_add(&ram_remapped_mapping, start * 1024, size * 1024, mem_read_remapped, mem_read_remappedw,
                                 mem_read_remappedl, mem_write_remapped, mem_write_remappedw, mem_write_remappedl, ram + 0xA0000,
                                 MEM_MAPPING_INTERNAL, NULL);
+                cpu_dump_memory("shadow_after", ram + 0xA0000, start * 1024, size * 1024);
+                uint32_t crc = mvhd_crc32(ram + 0xA0000, size * 1024);
+                cpu_log_bios_change(bios_crc_ref, crc);
+                bios_crc_ref = crc;
+                cpu_log_shadow_remap(start * 1024, size * 1024);
         }
 }
 
@@ -1680,4 +1710,10 @@ void debug_dump_vga_rom_signature(void)
                 "Error: VGA ROM signature invalid or not loaded. Expected 55 AA\n");
         exit(1);
     }
+}
+
+void mem_record_bios_crc(void)
+{
+        bios_crc_ref = mvhd_crc32(rom, biosmask + 1);
+        cpu_log_bios_change(0, bios_crc_ref);
 }
