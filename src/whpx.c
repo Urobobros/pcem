@@ -3,6 +3,7 @@
 #include "x86.h"
 #include "ibm.h"
 #include "mem.h"
+#include "cpu_debug.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
@@ -755,7 +756,9 @@ int whpx_vcpu_run(void)
         return 0;
     case WHvRunVpExitReasonMemoryAccess:
     case WHvRunVpExitReasonX64IoPortAccess:
-        /* Unhandled exits will be emulated by the interpreter */
+        /* Log the physical address and current instruction for parity with the interpreter */
+        cpu_log_current_insn();
+        cpu_log_gpa_write((uint32_t)exit_ctx.MemoryAccess.Gpa);
         return 0;
 #ifdef WHvRunVpExitReasonNone
     case WHvRunVpExitReasonNone:
