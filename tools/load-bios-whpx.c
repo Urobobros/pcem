@@ -6,18 +6,7 @@
 #include <windows.h>
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
-
-#ifdef __MINGW32__
-#define SEGATTR(seg) ((seg).Attributes)
-#elif defined(_MSC_VER)
-#define SEGATTR(seg) ((seg).Attributes.AsUINT16)
-#else
-#define SEGATTR(seg) ((seg).Flags)
-#endif
-
-/* Real-mode segment attribute values */
-#define WHPX_REAL_MODE_CODE_ATTR 0x0093 /* execute/read */
-#define WHPX_REAL_MODE_DATA_ATTR 0x0092 /* read/write */
+#include "whpx.h"
 
 static void log_hresult(const char *prefix, HRESULT hr)
 {
@@ -159,81 +148,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /*
-     * Initialise the virtual CPU in 16-bit real mode similarly to
-     * check-whpx.c. If segment registers or descriptor tables are left
-     * undefined WHPX stops the vCPU with a MemoryAccess exit (reason 5)
-     * before the BIOS executes.  Provide a minimal real mode state so
-     * execution can begin at the reset vector.
-     */
-    WHV_REGISTER_NAME regs[16];
-    WHV_REGISTER_VALUE vals[16];
-    int n = 0;
-
-    regs[n] = WHvX64RegisterRip;
-    vals[n].Reg64 = 0xFFF0;
-    n++;
-
-    regs[n] = WHvX64RegisterCs;
-    vals[n].Segment.Base = 0xF0000;
-    vals[n].Segment.Limit = 0xFFFF;
-    vals[n].Segment.Selector = 0xF000;
-    SEGATTR(vals[n].Segment) = WHPX_REAL_MODE_CODE_ATTR;
-    n++;
-
-    regs[n] = WHvX64RegisterRsp;
-    vals[n].Reg64 = 0x8000;
-    n++;
-
-    WHV_REGISTER_NAME segs[] = { WHvX64RegisterDs, WHvX64RegisterEs,
-                                 WHvX64RegisterSs, WHvX64RegisterFs,
-                                 WHvX64RegisterGs };
-    for (int i = 0; i < 5; i++) {
-        regs[n] = segs[i];
-        vals[n].Segment.Base = 0;
-        vals[n].Segment.Limit = 0xFFFF;
-        vals[n].Segment.Selector = 0;
-
-        SEGATTR(vals[n].Segment) = WHPX_REAL_MODE_DATA_ATTR; /* data */
-        n++;
-    }
-
-    /* Descriptor tables required for real mode startup */
-    regs[n] = WHvX64RegisterGdtr;
-    vals[n].Table.Base = 0;
-    vals[n].Table.Limit = 0xFFFF;
-    n++;
-
-    regs[n] = WHvX64RegisterIdtr;
-    vals[n].Table.Base = 0;
-    vals[n].Table.Limit = 0xFFFF;
-    n++;
-
-    regs[n] = WHvX64RegisterTr;
-    vals[n].Segment.Base = 0;
-    vals[n].Segment.Limit = 0xFFFF;
-    vals[n].Segment.Selector = 0;
-    SEGATTR(vals[n].Segment) = 0x008B;
-    n++;
-
-    regs[n] = WHvX64RegisterLdtr;
-    vals[n].Segment.Base = 0;
-    vals[n].Segment.Limit = 0xFFFF;
-    vals[n].Segment.Selector = 0;
-    SEGATTR(vals[n].Segment) = 0x0082;
-    n++;
-
-    regs[n] = WHvX64RegisterCr0;
-    vals[n].Reg64 = 0x10;
-    n++;
-
-    regs[n] = WHvX64RegisterRflags;
-    vals[n].Reg64 = 0x2;
-    n++;
-
-    hr = WHvSetVirtualProcessorRegisters(partition, 0, regs, n, vals);
-    if (FAILED(hr)) {
-        log_hresult("WHvSetVirtualProcessorRegisters", hr);
+    /* Initialize registers for real mode execution */
+    if (whpx_init_realmode_state(partition, 0) != 0) {
+        fprintf(stderr, "Failed to set initial vCPU state\n");
         WHvDeleteVirtualProcessor(partition, 0);
         VirtualFree(ram, 0, MEM_RELEASE);
         WHvDeletePartition(partition);
