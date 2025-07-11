@@ -193,6 +193,7 @@ int main(int argc, char **argv)
         vals[n].Segment.Base = 0;
         vals[n].Segment.Limit = 0xFFFF;
         vals[n].Segment.Selector = 0;
+
         SEGATTR(vals[n].Segment) = WHPX_REAL_MODE_DATA_ATTR; /* data */
         n++;
     }
