@@ -162,7 +162,7 @@ static void whpx_dump_vp_registers(const char *msg)
  * BIOS reset vector F000:FFF0.  This ensures WHPX sees valid segment
  * descriptors and control register values when the CPU first runs.
  */
-static int init_real_mode_registers(void)
+int whpx_init_realmode_state(WHV_PARTITION_HANDLE part, UINT32 vcpu_id)
 {
     /* Initialize registers for real-mode boot at F000:FFF0 */
     WHV_REGISTER_NAME regs[] = {
@@ -256,7 +256,7 @@ static int init_real_mode_registers(void)
     vals[16].Reg64 = 0; /* RSP */
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
-        whpx_partition, whpx_vcpu_id, regs,
+        part, vcpu_id, regs,
         sizeof(regs)/sizeof(regs[0]), vals);
     if (FAILED(hr)) {
         whpx_log_hresult("WHvSetVirtualProcessorRegisters", hr);
@@ -349,9 +349,9 @@ int whpx_vcpu_create(void)
         return -1;
     }
     whpx_vcpu_created = 1;
-    pclog("whpx: Calling init_real_mode_registers()\n");
-    if (init_real_mode_registers() != 0) {
-        pclog("whpx: init_real_mode_registers failed\n");
+    pclog("whpx: Calling whpx_init_realmode_state()\n");
+    if (whpx_init_realmode_state(whpx_partition, whpx_vcpu_id) != 0) {
+        pclog("whpx: whpx_init_realmode_state failed\n");
         return -1;
     }
     whpx_dump_vp_registers("after init");
@@ -363,7 +363,7 @@ int whpx_reset_vcpu(void)
     if (!whpx_partition || !whpx_vcpu_created)
         return -1;
     pclog("whpx: resetting VCPU state\n");
-    return init_real_mode_registers();
+    return whpx_init_realmode_state(whpx_partition, whpx_vcpu_id);
 }
 
 int whpx_map_memory(void *mem, size_t size)
