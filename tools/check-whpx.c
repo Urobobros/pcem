@@ -210,6 +210,7 @@ int main(int argc, char **argv)
      * pointer. Without these the hypervisor stops the vCPU with a
      * MemoryAccess exit before our HLT executes.
      */
+
     WHV_REGISTER_NAME reg_names[10];
     WHV_REGISTER_VALUE reg_vals[10];
     int n = 0;
@@ -260,8 +261,21 @@ int main(int argc, char **argv)
         n++;
     }
 
+    /* Data segments. */
+    for (int i = 3; i <= 7; i++) {
+        reg_vals[i].Segment.Base = 0;
+        reg_vals[i].Segment.Limit = 0xFFFF;
+        reg_vals[i].Segment.Selector = 0;
+        SEGATTR(reg_vals[i].Segment) = 0x0092;
+    }
+
+    /* Real mode CR0 and default RFLAGS value. */
+    reg_vals[8].Reg64 = 0x10;
+    reg_vals[9].Reg64 = 0x2;
+
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
                                          reg_names, n, reg_vals);
+
     if (FAILED(hr)) {
         log_hresult("WHvSetVirtualProcessorRegisters", hr);
         WHvDeleteVirtualProcessor(partition, 0);
