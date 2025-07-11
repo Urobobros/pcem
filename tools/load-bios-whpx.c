@@ -52,7 +52,13 @@ int main(int argc, char **argv)
     fseek(f, 0, SEEK_END);
     long rom_size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (rom_size <= 0 || rom_size > 0x10000) {
+    /*
+     * BIOS images for PCem boards are often larger than 64 kB.  The
+     * original loader only accepted up to 0x10000 bytes which prevented
+     * testing of 128 kB and 256 kB ROMs (for example the 430VX BIOS).
+     * Allow images up to 256 kB which covers all current PCem ROMs.
+     */
+    if (rom_size <= 0 || rom_size > 0x40000) {
         fprintf(stderr, "unsupported ROM size\n");
         fclose(f);
         return 1;
