@@ -155,8 +155,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    WHV_REGISTER_NAME regs[10];
-    WHV_REGISTER_VALUE vals[10];
+    /*
+     * Initialise the virtual CPU in 16-bit real mode similarly to
+     * check-whpx.c. If segment registers or descriptor tables are left
+     * undefined WHPX stops the vCPU with a MemoryAccess exit (reason 5)
+     * before the BIOS executes.  Provide a minimal real mode state so
+     * execution can begin at the reset vector.
+     */
+    WHV_REGISTER_NAME regs[16];
+    WHV_REGISTER_VALUE vals[16];
     int n = 0;
 
     regs[n] = WHvX64RegisterRip;
@@ -182,9 +189,34 @@ int main(int argc, char **argv)
         vals[n].Segment.Base = 0;
         vals[n].Segment.Limit = 0xFFFF;
         vals[n].Segment.Selector = 0;
-        SEGATTR(vals[n].Segment) = 0x0092;
+        SEGATTR(vals[n].Segment) = 0x0092; /* data */
         n++;
     }
+
+    /* Descriptor tables required for real mode startup */
+    regs[n] = WHvX64RegisterGdtr;
+    vals[n].Table.Base = 0;
+    vals[n].Table.Limit = 0xFFFF;
+    n++;
+
+    regs[n] = WHvX64RegisterIdtr;
+    vals[n].Table.Base = 0;
+    vals[n].Table.Limit = 0xFFFF;
+    n++;
+
+    regs[n] = WHvX64RegisterTr;
+    vals[n].Segment.Base = 0;
+    vals[n].Segment.Limit = 0xFFFF;
+    vals[n].Segment.Selector = 0;
+    SEGATTR(vals[n].Segment) = 0x008B;
+    n++;
+
+    regs[n] = WHvX64RegisterLdtr;
+    vals[n].Segment.Base = 0;
+    vals[n].Segment.Limit = 0xFFFF;
+    vals[n].Segment.Selector = 0;
+    SEGATTR(vals[n].Segment) = 0x0082;
+    n++;
 
     regs[n] = WHvX64RegisterCr0;
     vals[n].Reg64 = 0x10;
