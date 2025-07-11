@@ -22,6 +22,8 @@ správně mapoval paměť a umožnil spuštění BIOSu po resetu.
   velikost.
 - [x] Ověřit, že se během běhu s WHPX nepouští jit/dynarec backend a že mezi
   režimy nedochází ke konfliktu.
+- [x] Logovat typ paměti a GPA při každé změně PAM registrů pro snazší
+  sledování přemapování paměti.
 
 Tento plán budeme postupně naplňovat a odškrtávat po implementaci a otestování
 jednotlivých bodů.

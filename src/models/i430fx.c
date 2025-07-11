@@ -3,18 +3,47 @@
 #include "ibm.h"
 #include "io.h"
 #include "keyboard_at.h"
+
 #include "mem.h"
 #include "cpu_backend.h"
-
 #ifdef USE_WHPX
 #include "whpx.h"
 #endif
 #include "pci.h"
+
 #include "x86.h"
 
 #include "i430fx.h"
 
 static uint8_t card_i430fx[256];
+
+#ifdef USE_WHPX
+static void pam_update(uint32_t addr, uint32_t size, int state)
+{
+    if (cpu_backend != CPU_BACKEND_WHPX)
+        return;
+
+    switch (state & 3) {
+    case 3:
+        pclog("i430fx pam_update: map RAM gpa=%05X size=%x\n", addr, size);
+        whpx_map_range(ram + addr, addr, size);
+        break;
+    case 0:
+        pclog("i430fx pam_update: unmap gpa=%05X size=%x\n", addr, size);
+        whpx_unmap_range(addr, size);
+        break;
+    default:
+    {
+        uint32_t off = (addr - 0xe0000) + 0x20000;
+        pclog("i430fx pam_update: map ROM gpa=%05X size=%x\n", addr, size);
+        whpx_map_rom(rom + (off & biosmask), addr, size);
+        break;
+    }
+    }
+}
+#else
+#define pam_update(addr,size,state) do { } while (0)
+#endif
 
 #ifdef USE_WHPX
 static void pam_update(uint32_t addr, uint32_t size, int state)
@@ -52,6 +81,7 @@ static void i430fx_map(uint32_t addr, uint32_t size, int state) {
         case 2:
                 mem_set_mem_state(addr, size, MEM_READ_EXTERNAL | MEM_WRITE_INTERNAL);
                 break;
+
         case 3:
                 mem_set_mem_state(addr, size, MEM_READ_INTERNAL | MEM_WRITE_INTERNAL);
                 break;

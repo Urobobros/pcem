@@ -24,14 +24,20 @@ static void pam_update(uint32_t addr, uint32_t size, int state)
 
     switch (state & 3) {
     case 3:
+
+        pclog("i440bx pam_update: map RAM gpa=%05X size=%x\n", addr, size);
         whpx_map_range(ram + addr, addr, size);
         break;
     case 0:
+        pclog("i440bx pam_update: unmap gpa=%05X size=%x\n", addr, size);
+
         whpx_unmap_range(addr, size);
         break;
     default:
     {
         uint32_t off = (addr - 0xe0000) + 0x20000;
+        pclog("i440bx pam_update: map ROM gpa=%05X size=%x\n", addr, size);
+
         whpx_map_rom(rom + (off & biosmask), addr, size);
         break;
     }

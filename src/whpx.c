@@ -178,6 +178,11 @@ static int init_real_mode_registers(void)
         WHvX64RegisterEs,
         WHvX64RegisterFs,
         WHvX64RegisterGs,
+        WHvX64RegisterGdtr,
+        WHvX64RegisterIdtr,
+        WHvX64RegisterTr,
+        WHvX64RegisterLdtr,
+        WHvX64RegisterRsp,
     };
     WHV_REGISTER_VALUE vals[sizeof(regs)/sizeof(regs[0])];
 
@@ -204,7 +209,7 @@ static int init_real_mode_registers(void)
           SEGATTR(vals[6].Segment));
 
     /* Data segments */
-    for (int i = 7; i < (int)(sizeof(regs)/sizeof(regs[0])); i++) {
+    for (int i = 7; i <= 11; i++) {
         init_segment(&vals[i], 0, 0, 0xFFFF, data_attr);
         switch (i) {
         case 7: /* SS */
@@ -239,6 +244,16 @@ static int init_real_mode_registers(void)
             break;
         }
     }
+
+    /* Descriptor tables and task registers */
+    vals[12].Table.Base = 0;
+    vals[12].Table.Limit = 0xFFFF;
+    vals[13].Table.Base = 0;
+    vals[13].Table.Limit = 0xFFFF;
+    init_segment(&vals[14], 0, 0, 0xFFFF, 0x008B); /* TR */
+    init_segment(&vals[15], 0, 0, 0xFFFF, 0x0082); /* LDTR */
+
+    vals[16].Reg64 = 0; /* RSP */
 
     HRESULT hr = WHvSetVirtualProcessorRegisters(
         whpx_partition, whpx_vcpu_id, regs,
@@ -449,6 +464,22 @@ int whpx_map_range(void *mem, unsigned long long gpa, size_t size)
         whpx_log_hresult("WHvMapGpaRange(range)", hr);
         return -1;
     }
+    pclog("whpx: RAM 0x%llx size=0x%zx mapped successfully\n", gpa, size);
+    return 0;
+}
+
+int whpx_unmap_range(unsigned long long gpa, size_t size)
+{
+    if (!whpx_partition)
+        return -1;
+
+    pclog("whpx: unmapping GPA 0x%llx size=0x%zx\n", gpa, size);
+    HRESULT hr = WHvUnmapGpaRange(whpx_partition, gpa, size);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvUnmapGpaRange", hr);
+        return -1;
+    }
+    pclog("whpx: GPA 0x%llx unmapped\n", gpa);
     return 0;
 }
 
@@ -782,7 +813,8 @@ int whpx_vcpu_run(void)
 
     const char *area = mem_addr_is_rom(cpu_state.pc) ? "ROM" :
                        (mem_addr_is_ram(cpu_state.pc) ? "RAM" : "???");
-    uint32_t ip = (cpu_state.pc - cs) & 0xFFFF; /* real-mode offset */
+    uint32_t ip = cpu_state.pc - cs;
+
     pclog("whpx: GPA=0x%05X CS:IP=%04X:%04X area=%s exit=%u\n",
           cpu_state.pc, CS, ip, area, exit_ctx.ExitReason);
 

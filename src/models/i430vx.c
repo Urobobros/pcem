@@ -4,7 +4,6 @@
 #include "io.h"
 #include "mem.h"
 #include "cpu_backend.h"
-
 #ifdef USE_WHPX
 #include "whpx.h"
 #endif
@@ -22,14 +21,17 @@ static void pam_update(uint32_t addr, uint32_t size, int state)
 
     switch (state & 3) {
     case 3:
+        pclog("i430vx pam_update: map RAM gpa=%05X size=%x\n", addr, size);
         whpx_map_range(ram + addr, addr, size);
         break;
     case 0:
+        pclog("i430vx pam_update: unmap gpa=%05X size=%x\n", addr, size);
         whpx_unmap_range(addr, size);
         break;
     default:
     {
         uint32_t off = (addr - 0xe0000) + 0x20000;
+        pclog("i430vx pam_update: map ROM gpa=%05X size=%x\n", addr, size);
         whpx_map_rom(rom + (off & biosmask), addr, size);
         break;
     }
@@ -40,6 +42,7 @@ static void pam_update(uint32_t addr, uint32_t size, int state)
 #endif
 
 static void i430vx_map(uint32_t addr, uint32_t size, int state) {
+
         switch (state & 3) {
         case 0:
                 mem_set_mem_state(addr, size, MEM_READ_EXTERNAL | MEM_WRITE_EXTERNAL);
@@ -57,6 +60,7 @@ static void i430vx_map(uint32_t addr, uint32_t size, int state) {
         flushmmucache_nopc();
         pam_update(addr, size, state);
 }
+
 
 void i430vx_write(int func, int addr, uint8_t val, void *priv) {
         if (func)
