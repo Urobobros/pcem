@@ -1,6 +1,8 @@
 #ifndef _X86_H_
 #define _X86_H_
 
+#include <stdint.h>
+
 #define EAX cpu_state.regs[0].l
 #define ECX cpu_state.regs[1].l
 #define EDX cpu_state.regs[2].l

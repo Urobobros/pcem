@@ -8,17 +8,74 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
+#include <stdio.h>
+#if defined(_WIN32) && defined(USE_WHPX)
+#include <windows.h>
+#endif
 #include "ibm.h"
 
 #include "config.h"
 #include "mem.h"
 #include "video.h"
+#include "hdd/minivhd/minivhd_util.h"
+#include "vid_svga.h"
 #include "x86.h"
 #include "cpu.h"
+#include "cpu_debug.h"
 #include "rom.h"
 #include "x86_ops.h"
 #include "codegen.h"
 #include "xi8088.h"
+#ifdef USE_WHPX
+#include "cpu_backend.h"
+#include "whpx.h"
+#endif
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <execinfo.h>
+#endif
+
+static void log_stack_trace(void)
+{
+#if defined(_WIN32)
+    void *frames[16];
+    USHORT n = CaptureStackBackTrace(0, 16, frames, NULL);
+    for (USHORT i = 1; i < n; i++)
+        pclog("  [%u] %p\n", i, frames[i]);
+#else
+    void *frames[16];
+    int n = backtrace(frames, 16);
+    char **syms = backtrace_symbols(frames, n);
+    if (syms) {
+        for (int i = 1; i < n; i++)
+            pclog("  %s\n", syms[i]);
+        free(syms);
+    }
+#endif
+}
+
+/* Log the BIOS reset vector to help diagnose ROM mapping issues */
+static void log_bios_reset_vector(void)
+{
+    size_t bios_size = (size_t)biosmask + 1;
+    uint32_t offset = 0xFFFF0 & biosmask;
+    if (offset + 16 > bios_size) {
+        pclog("BIOS ROM too small for reset vector\n");
+        return;
+    }
+    const uint8_t *ptr = rom + offset;
+    pclog("BIOS reset vector bytes: %02X %02X %02X %02X\n",
+          ptr[0], ptr[1], ptr[2], ptr[3]);
+    if (ptr[0] == 0xEA) {
+        uint16_t off = ptr[1] | (ptr[2] << 8);
+        uint16_t seg = ptr[3] | (ptr[4] << 8);
+        pclog("BIOS JMP FAR %04X:%04X\n", seg, off);
+    } else if (ptr[0] == 0xF4) {
+        pclog("BIOS HLT instruction at reset vector\n");
+    }
+}
 
 page_t *pages;
 page_t **page_lookup;
@@ -39,18 +96,30 @@ static mem_mapping_t romext_mapping;
 
 static uint8_t ff_array[0x1000];
 
+#ifdef USE_WHPX
+#define WHPX_MAP_ROM(off, addr) \
+    do { \
+        if (cpu_backend == CPU_BACKEND_WHPX) \
+            whpx_map_rom(rom + ((off) & biosmask), (addr), 0x4000); \
+    } while (0)
+#else
+#define WHPX_MAP_ROM(off, addr) do { } while (0)
+#endif
+
 int mem_size;
 uint32_t biosmask;
 int readlnum = 0, writelnum = 0;
 int cachesize = 256;
 
 uint8_t *ram, *rom = NULL;
+size_t ram_size = 0;
 uint8_t romext[32768];
 
 uint64_t *byte_dirty_mask;
 uint64_t *byte_code_present_mask;
 
 uint32_t mem_logical_addr;
+static uint32_t bios_crc_ref;
 
 void (*smram_enable)(void);
 void (*smram_disable)(void);
@@ -72,6 +141,13 @@ int mem_addr_is_ram(uint32_t addr) {
 
         return (mapping == &ram_low_mapping) || (mapping == &ram_high_mapping) || (mapping == &ram_mid_mapping) ||
                (mapping == &ram_remapped_mapping);
+}
+
+int mem_addr_is_rom(uint32_t addr)
+{
+        mem_mapping_t *mapping = read_mapping[addr >> 14];
+
+        return mapping && (mapping->flags & MEM_MAPPING_ROM);
 }
 
 void resetreadlookup() {
@@ -428,6 +504,9 @@ uint8_t *getpccache(uint32_t a) {
         }
         a &= rammask;
 
+        if (a >= 0xA0000 && a < 0xC0000)
+                pclog("getpccache: VGA access at 0x%05X\n", a);
+
         if (_mem_exec[a >> 14]) {
                 if (read_mapping[a >> 14]->flags & MEM_MAPPING_ROM)
                         cpu_prefetch_cycles = cpu_rom_prefetch_cycles;
@@ -437,7 +516,24 @@ uint8_t *getpccache(uint32_t a) {
                 return &_mem_exec[a >> 14][(uintptr_t)(a & 0x3000) - (uintptr_t)(a2 & ~0xFFF)];
         }
 
-        pclog("Bad getpccache %08X\n", a);
+#ifdef USE_WHPX
+        if (cpu_backend == CPU_BACKEND_WHPX) {
+                uint8_t *base = whpx_get_ram_base();
+                size_t size = whpx_get_ram_size();
+                if (a < size) {
+                        pclog("getpccache: addr=0x%X -> %p (ram base=%p size=0x%zX)\n",
+                              a, base + a, base, size);
+                        return &base[a];
+                }
+        } else
+#endif
+        if (a < ram_size)
+                return &ram[a];
+
+
+        pclog("getpccache: invalid access 0x%05X (outside RAM)\n", a);
+        cpu_log_state("Bad getpccache");
+        log_stack_trace();
         return &ff_array[0 - (uintptr_t)(a2 & ~0xFFF)];
 }
 
@@ -960,14 +1056,20 @@ void mem_write_raml_page(uint32_t addr, uint32_t val, page_t *p) {
 
 void mem_write_ram(uint32_t addr, uint8_t val, void *priv) {
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramb_page(addr, val, &pages[addr >> 12]);
 }
 void mem_write_ramw(uint32_t addr, uint16_t val, void *priv) {
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramw_page(addr, val, &pages[addr >> 12]);
 }
 void mem_write_raml(uint32_t addr, uint32_t val, void *priv) {
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_raml_page(addr, val, &pages[addr >> 12]);
 }
 
@@ -993,18 +1095,24 @@ void mem_write_remapped(uint32_t addr, uint8_t val, void *priv) {
         uint32_t oldaddr = addr;
         addr = 0xA0000 + (addr - remap_start_addr);
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramb_page(addr, val, &pages[oldaddr >> 12]);
 }
 void mem_write_remappedw(uint32_t addr, uint16_t val, void *priv) {
         uint32_t oldaddr = addr;
         addr = 0xA0000 + (addr - remap_start_addr);
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_ramw_page(addr, val, &pages[oldaddr >> 12]);
 }
 void mem_write_remappedl(uint32_t addr, uint32_t val, void *priv) {
         uint32_t oldaddr = addr;
         addr = 0xA0000 + (addr - remap_start_addr);
         addwritelookup(mem_logical_addr, addr);
+        cpu_log_current_insn();
+        cpu_log_gpa_write(addr);
         mem_write_raml_page(addr, val, &pages[oldaddr >> 12]);
 }
 
@@ -1025,9 +1133,18 @@ uint8_t mem_read_romext(uint32_t addr, void *priv) { return romext[addr & 0x7fff
 uint16_t mem_read_romextw(uint32_t addr, void *priv) { return *(uint16_t *)&romext[addr & 0x7fff]; }
 uint32_t mem_read_romextl(uint32_t addr, void *priv) { return *(uint32_t *)&romext[addr & 0x7fff]; }
 
-void mem_write_null(uint32_t addr, uint8_t val, void *p) {}
-void mem_write_nullw(uint32_t addr, uint16_t val, void *p) {}
-void mem_write_nulll(uint32_t addr, uint32_t val, void *p) {}
+void mem_write_null(uint32_t addr, uint8_t val, void *p)
+{
+        cpu_log_oob_access("WRITE8", addr);
+}
+void mem_write_nullw(uint32_t addr, uint16_t val, void *p)
+{
+        cpu_log_oob_access("WRITE16", addr);
+}
+void mem_write_nulll(uint32_t addr, uint32_t val, void *p)
+{
+        cpu_log_oob_access("WRITE32", addr);
+}
 
 void mem_invalidate_range(uint32_t start_addr, uint32_t end_addr) {
         start_addr &= ~PAGE_MASK_MASK;
@@ -1233,57 +1350,79 @@ void mem_set_mem_state(uint32_t base, uint32_t size, int state) {
 }
 
 void mem_add_bios() {
+
         if (AT || (romset == ROM_XI8088 && xi8088_bios_128kb())) {
                 mem_mapping_add(&bios_mapping[0], 0xe0000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x20000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x20000, 0xe0000);
                 mem_mapping_add(&bios_mapping[1], 0xe4000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x24000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x24000, 0xe4000);
                 mem_mapping_add(&bios_mapping[2], 0xe8000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x28000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x28000, 0xe8000);
                 mem_mapping_add(&bios_mapping[3], 0xec000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                                 mem_write_nullw, mem_write_nulll, rom + (0x2c000 & biosmask),
                                 MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x2c000, 0xec000);
         }
+        pclog("[ROM] Mapping BIOS at 0xF0000\n");
         mem_mapping_add(&bios_mapping[4], 0xf0000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x30000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x30000, 0xf0000);
         mem_mapping_add(&bios_mapping[5], 0xf4000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x34000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x34000, 0xf4000);
         mem_mapping_add(&bios_mapping[6], 0xf8000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x38000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x38000, 0xf8000);
         mem_mapping_add(&bios_mapping[7], 0xfc000, 0x04000, mem_read_bios, mem_read_biosw, mem_read_biosl, mem_write_null,
                         mem_write_nullw, mem_write_nulll, rom + (0x3c000 & biosmask), MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x3c000, 0xfc000);
 
         mem_mapping_add(&bios_high_mapping[0], (AT && cpu_16bitbus) ? 0xfe0000 : 0xfffe0000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x20000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x20000, (AT && cpu_16bitbus) ? 0xfe0000 : 0xfffe0000);
         mem_mapping_add(&bios_high_mapping[1], (AT && cpu_16bitbus) ? 0xfe4000 : 0xfffe4000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x24000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x24000, (AT && cpu_16bitbus) ? 0xfe4000 : 0xfffe4000);
         mem_mapping_add(&bios_high_mapping[2], (AT && cpu_16bitbus) ? 0xfe8000 : 0xfffe8000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x28000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x28000, (AT && cpu_16bitbus) ? 0xfe8000 : 0xfffe8000);
         mem_mapping_add(&bios_high_mapping[3], (AT && cpu_16bitbus) ? 0xfec000 : 0xfffec000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x2c000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x2c000, (AT && cpu_16bitbus) ? 0xfec000 : 0xfffec000);
         mem_mapping_add(&bios_high_mapping[4], (AT && cpu_16bitbus) ? 0xff0000 : 0xffff0000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x30000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x30000, (AT && cpu_16bitbus) ? 0xff0000 : 0xffff0000);
         mem_mapping_add(&bios_high_mapping[5], (AT && cpu_16bitbus) ? 0xff4000 : 0xffff4000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x34000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x34000, (AT && cpu_16bitbus) ? 0xff4000 : 0xffff4000);
         mem_mapping_add(&bios_high_mapping[6], (AT && cpu_16bitbus) ? 0xff8000 : 0xffff8000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x38000 & biosmask), MEM_MAPPING_ROM, 0);
+        WHPX_MAP_ROM(0x38000, (AT && cpu_16bitbus) ? 0xff8000 : 0xffff8000);
         mem_mapping_add(&bios_high_mapping[7], (AT && cpu_16bitbus) ? 0xffc000 : 0xffffc000, 0x04000, mem_read_bios,
                         mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll,
                         rom + (0x3c000 & biosmask), MEM_MAPPING_ROM, 0);
-        if (biosmask == 0x3ffff)
+        WHPX_MAP_ROM(0x3c000, (AT && cpu_16bitbus) ? 0xffc000 : 0xffffc000);
+        if (biosmask == 0x3ffff) {
                 mem_mapping_add(&bios_high_mapping[8], (AT && cpu_16bitbus) ? 0xfc0000 : 0xfffc0000, 0x20000, mem_read_bios,
                                 mem_read_biosw, mem_read_biosl, mem_write_null, mem_write_nullw, mem_write_nulll, rom,
                                 MEM_MAPPING_ROM, 0);
+                WHPX_MAP_ROM(0x00000, (AT && cpu_16bitbus) ? 0xfc0000 : 0xfffc0000);
+        }
+
+        log_bios_reset_vector();
 }
 
 int mem_a20_key = 0, mem_a20_alt = 0;
@@ -1300,6 +1439,8 @@ static void mem_remap_top(int max_size) {
 
                 remap_start_addr = start * 1024;
 
+                cpu_dump_memory("shadow_before", ram + (start * 1024), start * 1024, size * 1024);
+
                 for (c = ((start * 1024) >> 12); c < (((start + size) * 1024) >> 12); c++) {
                         int offset = c - ((start * 1024) >> 12);
                         pages[c].mem = &ram[0xA0000 + (offset << 12)];
@@ -1315,6 +1456,11 @@ static void mem_remap_top(int max_size) {
                 mem_mapping_add(&ram_remapped_mapping, start * 1024, size * 1024, mem_read_remapped, mem_read_remappedw,
                                 mem_read_remappedl, mem_write_remapped, mem_write_remappedw, mem_write_remappedl, ram + 0xA0000,
                                 MEM_MAPPING_INTERNAL, NULL);
+                cpu_dump_memory("shadow_after", ram + 0xA0000, start * 1024, size * 1024);
+                uint32_t crc = mvhd_crc32(ram + 0xA0000, size * 1024);
+                cpu_log_bios_change(bios_crc_ref, crc);
+                bios_crc_ref = crc;
+                cpu_log_shadow_remap(start * 1024, size * 1024);
         }
 }
 
@@ -1340,8 +1486,21 @@ void mem_init() {
 void mem_alloc() {
         int c;
 
+        pclog("[MEM] Allocating %d KB of RAM\n", mem_size);
+
+#if defined(_WIN32) && defined(USE_WHPX)
+        if (ram)
+                VirtualFree(ram, 0, MEM_RELEASE);
+        /* Allocate executable memory so WHPX can map it with execute permissions */
+        ram = VirtualAlloc(NULL, mem_size * 1024,
+                           MEM_COMMIT | MEM_RESERVE,
+                           PAGE_EXECUTE_READWRITE);
+
+#else
         free(ram);
         ram = malloc(mem_size * 1024);
+#endif
+        ram_size = mem_size * 1024;
         memset(ram, 0, mem_size * 1024);
 
         free(byte_dirty_mask);
@@ -1416,9 +1575,11 @@ void mem_alloc() {
                                         MEM_MAPPING_INTERNAL, NULL);
                 }
         }
-        if (mem_size > 768) // 640k - 768k is graphics RAM
+        if (mem_size > 768) { // 640k - 768k is graphics RAM
+                pclog("[VGA] Mapping VGA window 0xA0000-0xBFFFF\n");
                 mem_mapping_add(&ram_mid_mapping, 0xa0000, 0x60000, mem_read_ram, mem_read_ramw, mem_read_raml, mem_write_ram,
                                 mem_write_ramw, mem_write_raml, ram + 0xa0000, MEM_MAPPING_INTERNAL, NULL);
+        }
 
         if (romset == ROM_IBMPS1_2011)
                 mem_mapping_add(&romext_mapping, 0xc8000, 0x08000, mem_read_romext, mem_read_romextw, mem_read_romextl, NULL,
@@ -1460,3 +1621,99 @@ void mem_a20_recalc() {
 }
 
 uint32_t get_phys_virt, get_phys_phys;
+
+/*
+ * Dump the first 32 bytes of the VGA RAM region (0xA0000)
+ * This is a simple diagnostic helper to verify that the
+ * VGA framebuffer is correctly mapped and accessible.
+ */
+void debug_dump_vga_memory(void)
+{
+#ifdef USE_WHPX
+    if (cpu_backend == CPU_BACKEND_WHPX) {
+        svga_t *svga = svga_get_pri();
+        if (svga && svga->vram) {
+            printf("Dump VGA memory from svga->vram:\n");
+            for (int i = 0; i < 32; i++) {
+                printf("%02X ", svga->vram[i]);
+                if ((i + 1) % 16 == 0)
+                    printf("\n");
+            }
+            if (32 % 16)
+                printf("\n");
+
+            for (int i = 0; i < 0x20000; i++) {
+                if (svga->vram[i] != 0x00) {
+                    printf("VGA RAM initialized: data at 0x%05X = %02X\n",
+                           0xA0000 + i, svga->vram[i]);
+                    break;
+                }
+            }
+            return;
+        }
+    }
+#endif
+    pclog("[CHECK] Verifying VGA RAM at 0xA0000\n");
+    printf("Dump VGA memory at ram + 0xA0000:\n");
+    for (int i = 0; i < 32; i++) {
+        printf("%02X ", ram[0xA0000 + i]);
+        if ((i + 1) % 16 == 0)
+            printf("\n");
+    }
+    if (32 % 16)
+        printf("\n");
+
+    for (int i = 0; i < 0x20000; i++) {
+        if (ram[0xA0000 + i] != 0x00) {
+            printf("VGA RAM initialized: data at 0x%05X = %02X\n",
+                   0xA0000 + i, ram[0xA0000 + i]);
+            break;
+        }
+    }
+}
+
+/*
+ * Helper to verify and print the VGA ROM signature bytes at 0xC0000.
+ * If the card is not VGA/EGA or the first bytes are 0xFF or 0x00, the
+ * ROM likely isn't mapped so a message is printed and the function returns.
+ */
+void debug_dump_vga_rom_signature(void)
+{
+    /*
+     * The VGA BIOS might be stored in a separate ROM buffer rather than
+     * mirrored into the main RAM array.  Use physical memory reads so the
+     * check works regardless of backend or mapping strategy.
+     */
+
+    if (!ram) {
+        printf("VGA ROM signature: RAM not allocated yet\n");
+        return;
+    }
+
+    uint8_t sig0 = mem_readb_phys(0xC0000);
+    uint8_t sig1 = mem_readb_phys(0xC0001);
+
+    if (!video_is_ega_vga() ||
+        ((sig0 == 0xFF && sig1 == 0xFF) || (sig0 == 0x00 && sig1 == 0x00))) {
+        printf("No VGA BIOS found at 0xC0000\n");
+        return;
+    }
+
+    uint8_t sig2 = mem_readb_phys(0xC0002);
+
+    printf("VGA ROM signature bytes: %02X %02X %02X\n", sig0, sig1, sig2);
+
+    pclog("[CHECK] VGA BIOS signature valid\n");
+
+    if (sig0 != 0x55 || sig1 != 0xAA) {
+        fprintf(stderr,
+                "Error: VGA ROM signature invalid or not loaded. Expected 55 AA\n");
+        exit(1);
+    }
+}
+
+void mem_record_bios_crc(void)
+{
+        bios_crc_ref = mvhd_crc32(rom, biosmask + 1);
+        cpu_log_bios_change(0, bios_crc_ref);
+}

@@ -1,4 +1,4 @@
-# [PCem](https://pcem-emulator.co.uk/)
+#[PCem](https://pcem-emulator.co.uk/)
 ![Test Debug Builds](https://github.com/sarah-walker-pcem/pcem/actions/workflows/test-debug-builds.yml/badge.svg)
 ![Test Release Builds](https://github.com/sarah-walker-pcem/pcem/actions/workflows/test-release-builds.yml/badge.svg)
 ## Download: [Windows](https://pcem-emulator.co.uk/files/PCemV17Win.zip)/[Linux](https://pcem-emulator.co.uk/files/PCemV17Linux.tar.gz)/[vNext (Wise Global Solutions Mirror)](https://mirror.wiseglobalsolutions.com/pcem/)
@@ -19,6 +19,7 @@ You will need the following libraries and buildtools (and their dependencies):
 - OpenAL
 - CMake
 - Ninja (Recommended, but you can use a Makefile generator if you prefer)
+- Optional: Windows Hypervisor Platform (WHPX) SDK for acceleration
 
 Open a terminal window, navigate to the PCem directory then enter:
 ### Linux/BSD
@@ -32,8 +33,37 @@ ninja
 cmake -G "Ninja" -DMSYS=TRUE -DCMAKE_BUILD_TYPE=Release .
 ninja
 ```
+To build with WHPX acceleration, pass `-DUSE_WHPX=ON` when configuring:
+```
+cmake -G "Ninja" -DMSYS=TRUE -DUSE_WHPX=ON -DCMAKE_BUILD_TYPE=Release .
+ninja
+```
+You can verify that WHPX is available on your system by building the `check-whpx`
+utility from the `tools` directory and running it. The program sets up a minimal
+virtual machine with a HLT instruction at address 0 and initializes the CS and
+stack registers so the processor starts cleanly. It then reports whether the
+hypervisor service can be accessed and executes the test HLT instruction.
+When WHPX starts successfully the console will print `Using WHPX backend` and
+the window title will include `[WHPX]` after the CPU name. If WHPX is disabled or
+initialization fails, the window title shows `[WHPX NO]` so you can see that the
+interpreter backend is in use.
+If initialization fails, detailed error messages are printed to help diagnose
+missing features or permissions. If `check-whpx` prints
+`WHvGetCapability failed: 0x80370301` your system likely lacks WHPX support or
+the feature is not installed.
+If you instead see `WHvMapGpaRange failed: 0x80070057` your executable is
+probably 32-bit or the memory mapping is not 4 KB aligned. WHPX only works
+with 64-bit builds and requires addresses and sizes aligned to page boundaries.
+
+If PCem exits with `exit reason 5` when WHPX is enabled, the virtual CPU
+register values are invalid. PCem now initializes the real-mode startup state
+and prints a register dump to help diagnose such issues.
 
 then `./src/pcem` to run.
+
+On startup the emulator prints the path to the log file (usually
+`<pcem_path>/logs/pcem.log`).
+Actual log output only appears in **Debug** builds.
 
 The Linux/BSD versions store BIOS ROM images, configuration files, and other data in `~/.pcem`
 
@@ -49,7 +79,8 @@ default value.
   -DUSE_PCAP_NETWORKING=ON   : Build with pcap networking support. (Needs USE_NETWORKING to compile) Requires libpcap.
   -DUSE_ALSA=OFF             : Build with support for MIDI output through ALSA. Requires libasound. (Linux Only)
   -DFORCE_X11=ON             : Enables a hack to force X11 on Wayland systems. See #128 for details. (Linux Only)
-  -DPLUGIN_ENGINE=ON         : Build with plugin support. Builds libpcem-plugin-api and links PCem with it. 
+  -DPLUGIN_ENGINE=ON         : Build with plugin support. Builds libpcem-plugin-api and links PCem with it.
+  -DUSE_WHPX=OFF             : Enable Windows Hypervisor Platform acceleration. (Windows Only)
 ```
 
 If you are using -DCMAKE_BUILD_TYPE=Debug, there are some more debug options you can enable if needed

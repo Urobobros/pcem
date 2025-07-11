@@ -406,10 +406,12 @@ void append_slash(char *s, int size) {
 }
 
 void put_backslash(char *s) {
-        int c = strlen(s) - 1;
-        if (s[c] != '/' && s[c] != '\\') {
-                s[c + 1] = '/';
-                s[c + 2] = 0;
+        int len = strlen(s);
+        if (!len)
+                return;
+        if (s[len - 1] != '/' && s[len - 1] != '\\') {
+                s[len] = '/';
+                s[len + 1] = 0;
         }
 }
 

@@ -49,6 +49,7 @@ set(PCEM_PRIVATE_API ${PCEM_PRIVATE_API}
         ${CMAKE_SOURCE_DIR}/includes/private/cpu/x87_ops_loadstore.h
         ${CMAKE_SOURCE_DIR}/includes/private/cpu/x87_ops_misc.h
         ${CMAKE_SOURCE_DIR}/includes/private/cpu/x87_timings.h
+        ${CMAKE_SOURCE_DIR}/includes/private/cpu_debug.h
         )
 
 set(PCEM_SRC ${PCEM_SRC}
@@ -62,4 +63,4 @@ set(PCEM_SRC ${PCEM_SRC}
         cpu/x86seg.c
         cpu/x87.c
         cpu/x87_timings.c
-        )
+        cpu/cpu_debug.c        )

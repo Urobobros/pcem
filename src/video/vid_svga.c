@@ -9,6 +9,10 @@
 #include "io.h"
 #include "timer.h"
 #include "viewer.h"
+#include "cpu_backend.h"
+#ifdef USE_WHPX
+#include "whpx.h"
+#endif
 
 #define svga_output 0
 
@@ -769,7 +773,18 @@ int svga_init(svga_t *svga, void *p, int memsize, void (*recalctimings_ex)(struc
         svga->dispontime = 1000ull << 32;
         svga->dispofftime = 1000ull << 32;
         svga->bpp = 8;
-        svga->vram = malloc(memsize);
+#ifdef USE_WHPX
+        if (cpu_backend == CPU_BACKEND_WHPX) {
+                /*
+                 * When WHPX acceleration is active the CPU fetches VGA data
+                 * directly from system RAM. Point the framebuffer into the
+                 * main memory buffer and map the range for the hypervisor.
+                 */
+                svga->vram = ram + 0xA0000;
+                whpx_map_range(svga->vram, 0xA0000, 0x20000);
+        } else
+#endif
+                svga->vram = malloc(memsize);
         svga->vram_max = memsize;
         svga->vram_display_mask = memsize - 1;
         svga->vram_mask = memsize - 1;
@@ -803,7 +818,10 @@ int svga_init(svga_t *svga, void *p, int memsize, void (*recalctimings_ex)(struc
 
 void svga_close(svga_t *svga) {
         free(svga->changedvram);
-        free(svga->vram);
+#ifdef USE_WHPX
+        if (cpu_backend != CPU_BACKEND_WHPX)
+#endif
+                free(svga->vram);
 
         svga_pri = NULL;
 }

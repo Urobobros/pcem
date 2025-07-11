@@ -1,10 +1,15 @@
 #include <stdlib.h>
+#if defined(_WIN32) && defined(USE_WHPX)
+#include <windows.h>
+#endif
 #include "ibm.h"
 #include "mem.h"
 #include "mem_bios.h"
 #include "rom.h"
 #include "video.h"
 #include "xi8088.h"
+#include "hdd/minivhd/minivhd_util.h"
+#include "cpu_debug.h"
 
 static void romfread(uint8_t *buf, size_t size, size_t count, FILE *fp) {
         int result = fread(buf, size, count, fp);
@@ -56,6 +61,8 @@ int loadbios() {
         FILE *f = NULL, *ff = NULL;
         int c;
 
+        pclog("[ROM] Loading system BIOS\n");
+
         loadfont("mda.rom", FONT_MDA);
         loadfont("wy700.rom", FONT_WY700);
         loadfont("8x12.bin", FONT_MDSI);
@@ -63,12 +70,20 @@ int loadbios() {
 
         biosmask = 0xffff;
 
-        if (!rom)
+        if (!rom) {
+#if defined(_WIN32) && defined(USE_WHPX)
+                /* BIOS must be executable when mapped through WHPX */
+                rom = VirtualAlloc(NULL, 0x40000,
+                                   MEM_COMMIT | MEM_RESERVE,
+                                   PAGE_EXECUTE_READWRITE);
+#else
                 rom = malloc(0x40000);
+#endif
+        }
         memset(romext, 0x63, 0x4000);
         memset(rom, 0xff, 0x20000);
 
-        pclog("Starting with romset %i\n", romset);
+        //        pclog("Starting with romset %i\n", romset);
 
         switch (romset) {
         case ROM_PC1512:
@@ -1276,7 +1291,7 @@ int loadbios() {
                 biosmask = 0x3ffff;
                 return 1;
         }
-        printf("Failed to load ROM!\n");
+        //printf("Failed to load ROM!\n");
         if (f)
                 fclose(f);
         if (ff)

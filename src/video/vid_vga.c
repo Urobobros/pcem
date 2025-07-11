@@ -104,7 +104,11 @@ void *vga_init() {
         vga_t *vga = malloc(sizeof(vga_t));
         memset(vga, 0, sizeof(vga_t));
 
-        rom_init(&vga->bios_rom, "ibm_vga.bin", 0xc0000, 0x8000, 0x7fff, 0x2000, MEM_MAPPING_EXTERNAL);
+        if (rom_init(&vga->bios_rom, "ibm_vga.bin", 0xc0000, 0x8000, 0x7fff, 0x2000, MEM_MAPPING_EXTERNAL)) {
+                error("Failed to load VGA BIOS ROM 'ibm_vga.bin'. Check roms path.\n");
+                free(vga);
+                return NULL;
+        }
 
         svga_init(&vga->svga, vga, 1 << 18, /*256kb*/
                   NULL, vga_in, vga_out, NULL, NULL);

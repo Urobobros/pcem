@@ -97,9 +97,9 @@ void Frame::Start() {
 }
 
 void Frame::ShowConfigSelection() {
-        if (wx_load_config(this))
-                start_emulation(this);
-        else
+        if (wx_load_config(this)) {
+                wx_show_status(this);
+        } else
                 Quit(1);
 }
 

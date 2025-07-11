@@ -39,6 +39,8 @@
 #include "disc_img.h"
 #include "mem.h"
 #include "paths.h"
+#include <pcem/logging.h>
+#include "cpu_backend.h"
 #include "nethandler.h"
 
 #include "wx-sdl2-video.h"
@@ -114,6 +116,29 @@ int video_width = 640;
 int video_height = 480;
 
 char menuitem[60];
+
+static int romset_dir_exists(int romset) {
+    char base[512];
+    char path[512];
+    const char *name;
+    int i, model_idx;
+
+    model_idx = model_getmodel(romset);
+    if (model_idx < 0 || models[model_idx] == NULL)
+        return 0;
+
+    name = models[model_idx]->internal_name;
+
+    for (i = 0; i < num_roms_paths; i++) {
+        if (!get_roms_path(i, base, sizeof(base)))
+            continue;
+        append_slash(base, sizeof(base));
+        snprintf(path, sizeof(path), "%s%s", base, name);
+        if (dir_exists(path))
+            return 1;
+    }
+    return 0;
+}
 
 extern int config_selection_open(void *hwnd, int inited);
 extern int shader_manager_open(void *hwnd);
@@ -436,6 +461,10 @@ void sdl_onconfigloaded() {
 extern void wx_loadconfig();
 extern void wx_saveconfig();
 
+static int saved_argc;
+static char **saved_argv;
+static int pc_initialized = 0;
+
 int pc_main(int argc, char **argv) {
         // Expose some functions to libpcem-plugin-api without moving them over to
         // the plugin api proper
@@ -444,7 +473,11 @@ int pc_main(int argc, char **argv) {
         _dumpregs = dumpregs;
         _sound_speed_changed = sound_speed_changed;
 
+        saved_argc = argc;
+        saved_argv = argv;
+
         paths_init();
+        pclog_start();
 
         init_plugin_engine();
         model_init_builtin();
@@ -459,16 +492,6 @@ int pc_main(int argc, char **argv) {
         add_config_callback(sdl_loadconfig, sdl_saveconfig, sdl_onconfigloaded);
         add_config_callback(wx_loadconfig, wx_saveconfig, 0);
 
-        initpc(argc, argv);
-        resetpchard();
-
-        sound_init();
-
-#ifndef __APPLE__
-        display_init();
-#endif
-        sdl_video_init();
-        joystick_init();
 
         return TRUE;
 }
@@ -497,10 +520,10 @@ int wx_start(void *hwnd) {
         wx_setupmenu(0);
 
         d = romset;
-        for (c = 0; c < ROM_MAX; c++) {
-                romset = c;
-                romspresent[c] = loadbios();
-                pclog("romset %i - %i\n", c, romspresent[c]);
+        memset(romspresent, 0, sizeof(romspresent));
+        for (c = 0; models[c] != NULL; c++) {
+                int rs = models[c]->id;
+                romspresent[rs] = romset_dir_exists(rs);
         }
 
         for (c = 0; c < ROM_MAX; c++) {
@@ -535,6 +558,18 @@ int start_emulation(void *params) {
                 return TRUE;
         int c;
         pclog("Starting emulation...\n");
+
+        if (!pc_initialized) {
+                initpc(saved_argc, saved_argv);
+                sound_init();
+#ifndef __APPLE__
+                display_init();
+#endif
+                sdl_video_init();
+                joystick_init();
+                pc_initialized = 1;
+        }
+
         loadconfig(NULL);
 
         emulation_state = EMULATION_RUNNING;
@@ -641,6 +676,7 @@ void reset_emulation() {
 
 int wx_stop() {
         pclog("Shutting down...\n");
+        cpu_backend_shutdown();
         closepc();
         display_close();
         sdl_video_close();

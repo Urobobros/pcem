@@ -140,6 +140,7 @@ void page_remove_from_evict_list(page_t *p);
 void page_add_to_evict_list(page_t *p);
 
 int mem_addr_is_ram(uint32_t addr);
+int mem_addr_is_rom(uint32_t addr);
 
 uint32_t mmutranslate_noabrt(uint32_t addr, int rw);
 extern uint32_t get_phys_virt, get_phys_phys;
@@ -211,11 +212,17 @@ void flushmmucache();
 void flushmmucache_nopc();
 void flushmmucache_cr3();
 
+/* Diagnostic helper to print the first bytes of VGA RAM */
+void debug_dump_vga_memory(void);
+/* Prints the VGA ROM signature if present, otherwise reports missing ROM */
+void debug_dump_vga_rom_signature(void);
+
 void resetreadlookup();
 
 void mmu_invalidate(uint32_t addr);
 
 int loadbios();
+void mem_record_bios_crc(void);
 
 extern int purgeable_page_count;
 

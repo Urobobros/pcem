@@ -1,5 +1,6 @@
 #ifndef _X86_OPS_MOV_CTRL_H_
 #define _X86_OPS_MOV_CTRL_H_
+#include "cpu_debug.h"
 static int opMOV_r_CRx_a16(uint32_t fetchdat) {
         if ((CPL || (cpu_state.eflags & VM_FLAG)) && (cr0 & 1)) {
                 pclog("Can't load from CRx\n");
@@ -96,6 +97,8 @@ static int opMOV_r_DRx_a32(uint32_t fetchdat) {
 
 static int opMOV_CRx_r_a16(uint32_t fetchdat) {
         uint32_t old_cr0 = cr0;
+        uint32_t old_cr3 = cr3;
+        uint32_t old_cr4 = cr4;
 
         if ((CPL || (cpu_state.eflags & VM_FLAG)) && (cr0 & 1)) {
                 pclog("Can't load CRx\n");
@@ -108,6 +111,7 @@ static int opMOV_CRx_r_a16(uint32_t fetchdat) {
                 if ((cpu_state.regs[cpu_rm].l ^ cr0) & 0x80000001)
                         flushmmucache();
                 cr0 = cpu_state.regs[cpu_rm].l;
+                cpu_log_cr_change("CR0", old_cr0, cr0);
                 if (cpu_16bitbus)
                         cr0 |= 0x10;
                 if (!(cr0 & 0x80000000))
@@ -122,17 +126,20 @@ static int opMOV_CRx_r_a16(uint32_t fetchdat) {
                         cpu_cur_status |= CPU_STATUS_PMODE;
                 else
                         cpu_cur_status &= ~CPU_STATUS_PMODE;
+                cpu_log_mode_change();
                 break;
         case 2:
                 cr2 = cpu_state.regs[cpu_rm].l;
                 break;
         case 3:
                 cr3 = cpu_state.regs[cpu_rm].l;
+                cpu_log_cr_change("CR3", old_cr3, cr3);
                 flushmmucache();
                 break;
         case 4:
                 if (cpu_has_feature(CPU_FEATURE_CR4)) {
                         cr4 = cpu_state.regs[cpu_rm].l & cpu_CR4_mask;
+                        cpu_log_cr_change("CR4", old_cr4, cr4);
                         break;
                 }
 
@@ -148,6 +155,8 @@ static int opMOV_CRx_r_a16(uint32_t fetchdat) {
 }
 static int opMOV_CRx_r_a32(uint32_t fetchdat) {
         uint32_t old_cr0 = cr0;
+        uint32_t old_cr3 = cr3;
+        uint32_t old_cr4 = cr4;
 
         if ((CPL || (cpu_state.eflags & VM_FLAG)) && (cr0 & 1)) {
                 pclog("Can't load CRx\n");
@@ -160,6 +169,7 @@ static int opMOV_CRx_r_a32(uint32_t fetchdat) {
                 if ((cpu_state.regs[cpu_rm].l ^ cr0) & 0x80000001)
                         flushmmucache();
                 cr0 = cpu_state.regs[cpu_rm].l;
+                cpu_log_cr_change("CR0", old_cr0, cr0);
                 if (cpu_16bitbus)
                         cr0 |= 0x10;
                 if (!(cr0 & 0x80000000))
@@ -174,17 +184,20 @@ static int opMOV_CRx_r_a32(uint32_t fetchdat) {
                         cpu_cur_status |= CPU_STATUS_PMODE;
                 else
                         cpu_cur_status &= ~CPU_STATUS_PMODE;
+                cpu_log_mode_change();
                 break;
         case 2:
                 cr2 = cpu_state.regs[cpu_rm].l;
                 break;
         case 3:
                 cr3 = cpu_state.regs[cpu_rm].l;
+                cpu_log_cr_change("CR3", old_cr3, cr3);
                 flushmmucache();
                 break;
         case 4:
                 if (cpu_has_feature(CPU_FEATURE_CR4)) {
                         cr4 = cpu_state.regs[cpu_rm].l & cpu_CR4_mask;
+                        cpu_log_cr_change("CR4", old_cr4, cr4);
                         break;
                 }
 

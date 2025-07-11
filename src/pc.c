@@ -18,6 +18,7 @@
 #include "disc.h"
 #include "disc_img.h"
 #include "mem.h"
+#include "cpu_debug.h"
 #include "x86_ops.h"
 #include "codegen.h"
 #include "cdrom-null.h"
@@ -59,6 +60,7 @@
 #include "amstrad.h"
 #include "hdd.h"
 #include "x86.h"
+#include "cpu_backend.h"
 #include "paths.h"
 #include "plugin.h"
 #include "viewer.h"
@@ -192,9 +194,11 @@ void pc_reset() {
 #undef printf
 
 void initpc(int argc, char *argv[]) {
+        pclog("[BOOT] Starting PC initialization\n");
         // char *p;
         //        char *config_file = NULL;
         int c;
+        cpu_backend_init();
 
         for (c = 1; c < argc; c++) {
                 if (!strcasecmp(argv[c], "--help")) {
@@ -259,7 +263,8 @@ void initpc(int argc, char *argv[]) {
         initvideo();
         mem_init();
         loadbios();
-
+        mem_record_bios_crc();
+        cpu_log_set_json(1);
         // this is now done per-model
         // mem_add_bios();
 
@@ -360,6 +365,7 @@ void resetpchard() {
         io_init();
         cpu_set();
         mem_alloc();
+        cpu_backend_memory_init();
         fdc_init();
         disc_reset();
         disc_load(0, discfns[0]);
@@ -370,6 +376,13 @@ void resetpchard() {
         model_init();
         mouse_emu_init();
         video_init();
+        if (video_has_vga_rom()) {
+#ifdef USE_WHPX
+                if (cpu_backend == CPU_BACKEND_WHPX)
+                        debug_dump_vga_memory();
+#endif
+                debug_dump_vga_rom_signature();
+        }
         speaker_init();
         lpt1_device_init();
 
@@ -389,6 +402,7 @@ void resetpchard() {
                 device_add(&voodoo_device);
         hdd_controller_init(hdd_controller_name);
         pc_reset();
+        pclog("[BOOT] BIOS has taken control\n");
 
         resetide();
 
@@ -474,15 +488,7 @@ void runpc() {
 
         startblit();
 
-        if (is386) {
-                if (cpu_use_dynarec)
-                        exec386_dynarec(cycles_to_run);
-                else
-                        exec386(cycles_to_run);
-        } else if (AT)
-                exec386(cycles_to_run);
-        else
-                execx86(cycles_to_run);
+        cpu_backend_exec(cycles_to_run);
 
         keyboard_poll_host();
         keyboard_process();
@@ -534,8 +540,9 @@ void runpc() {
         }
         if (win_title_update) {
                 win_title_update = 0;
-                sprintf(s, "PCem " PCEM_VERSION_STRING " - %i%% - %s - %s - %s", fps, model_getname(),
+                sprintf(s, "PCem " PCEM_VERSION_STRING " - %i%% - %s - %s%s - %s", fps, model_getname(),
                         models[model]->cpu[cpu_manufacturer].cpus[cpu].name,
+                        (cpu_backend == CPU_BACKEND_WHPX) ? " [WHPX]" : " [WHPX NO]",
                         (!mousecapture) ? "Click to capture mouse"
                                         : ((mouse_get_type(mouse_type) & MOUSE_TYPE_3BUTTON)
                                                    ? "Press CTRL-END to release mouse"
@@ -653,6 +660,7 @@ void loadconfig(char *fn) {
         p = (char *)config_get_string(CFG_MACHINE, NULL, "fpu", "none");
         fpu_type = fpu_get_type(model, cpu_manufacturer, cpu, p);
         cpu_use_dynarec = config_get_int(CFG_MACHINE, NULL, "cpu_use_dynarec", 0);
+        pclog("[CPU] Dynamic recompiler %s\n", cpu_use_dynarec ? "enabled" : "disabled");
         cpu_waitstates = config_get_int(CFG_MACHINE, NULL, "cpu_waitstates", 0);
 
         p = (char *)config_get_string(CFG_MACHINE, NULL, "gfxcard", "");

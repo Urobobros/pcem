@@ -1,5 +1,6 @@
 /*S3 ViRGE emulation*/
 #include <stdlib.h>
+#include <stdio.h>
 #include "ibm.h"
 #include "device.h"
 #include "io.h"
@@ -4131,7 +4132,25 @@ static void *s3_virge_init() {
         svga_init(&virge->svga, virge, virge->memory_size << 20, s3_virge_recalctimings, s3_virge_in, s3_virge_out,
                   s3_virge_hwcursor_draw, s3_virge_overlay_draw);
 
-        rom_init(&virge->bios_rom, "s3virge.bin", 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
+        if (rom_init(&virge->bios_rom, "s3virge.bin", 0xc0000, 0x8000, 0x7fff, 0,
+                      MEM_MAPPING_EXTERNAL)) {
+                fprintf(stderr,
+                        "Error: VGA BIOS s3virge.bin not found or could not be loaded.\n");
+                exit(1);
+        }
+
+        if (virge->bios_rom.rom[0] != 0x55 || virge->bios_rom.rom[1] != 0xAA) {
+                fprintf(stderr,
+                        "Error: Invalid VGA BIOS signature in s3virge.bin. Expected 0x55 0xAA, got 0x%02X 0x%02X.\n",
+                        virge->bios_rom.rom[0], virge->bios_rom.rom[1]);
+                exit(1);
+        }
+
+        if (virge->bios_rom.rom[2] * 512 != 0x8000) {
+                fprintf(stderr,
+                        "Warning: VGA BIOS size field does not match expected size (0x8000 bytes).\n");
+        }
+
         if (PCI)
                 mem_mapping_disable(&virge->bios_rom.mapping);
 
@@ -4205,7 +4224,25 @@ static void *s3_virge_375_init() {
                   s3_virge_hwcursor_draw, s3_virge_overlay_draw);
         virge->svga.vblank_start = s3_virge_vblank_start;
 
-        rom_init(&virge->bios_rom, "86c375_1.bin", 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
+        if (rom_init(&virge->bios_rom, "86c375_1.bin", 0xc0000, 0x8000, 0x7fff, 0,
+                      MEM_MAPPING_EXTERNAL)) {
+                fprintf(stderr,
+                        "Error: VGA BIOS 86c375_1.bin not found or could not be loaded.\n");
+                exit(1);
+        }
+
+        if (virge->bios_rom.rom[0] != 0x55 || virge->bios_rom.rom[1] != 0xAA) {
+                fprintf(stderr,
+                        "Error: Invalid VGA BIOS signature in 86c375_1.bin. Expected 0x55 0xAA, got 0x%02X 0x%02X.\n",
+                        virge->bios_rom.rom[0], virge->bios_rom.rom[1]);
+                exit(1);
+        }
+
+        if (virge->bios_rom.rom[2] * 512 != 0x8000) {
+                fprintf(stderr,
+                        "Warning: VGA BIOS size field does not match expected size (0x8000 bytes).\n");
+        }
+
         if (PCI)
                 mem_mapping_disable(&virge->bios_rom.mapping);
 
