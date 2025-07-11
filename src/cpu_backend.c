@@ -17,6 +17,7 @@ void cpu_backend_init(void) {
         cpu_backend = CPU_BACKEND_WHPX;
         if (whpx_init() == 0) {
                 pclog("Using WHPX backend\n");
+                cpu_use_dynarec = 0;
         } else {
                 cpu_backend = CPU_BACKEND_RECOMP;
                 pclog("WHPX initialization failed, falling back to dynamic recompiler\n");

@@ -141,6 +141,13 @@ int mem_addr_is_ram(uint32_t addr) {
                (mapping == &ram_remapped_mapping);
 }
 
+int mem_addr_is_rom(uint32_t addr)
+{
+        mem_mapping_t *mapping = read_mapping[addr >> 14];
+
+        return mapping && (mapping->flags & MEM_MAPPING_ROM);
+}
+
 void resetreadlookup() {
         int c;
         //        /*if (output) */pclog("resetreadlookup\n");
