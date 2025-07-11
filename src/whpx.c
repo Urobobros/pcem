@@ -27,7 +27,7 @@
 
 /* Attribute values for real-mode segments */
 #define WHPX_REAL_MODE_CODE_ATTR 0x0093 /* real-mode code, execute/read */
-#define WHPX_REAL_MODE_DATA_ATTR 0x0093 /* present, read/write, 16-bit */
+#define WHPX_REAL_MODE_DATA_ATTR 0x0092 /* real-mode data, read/write */
 
 struct whpx_hr_entry {
     HRESULT hr;
