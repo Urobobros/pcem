@@ -212,6 +212,7 @@ int main(int argc, char **argv)
      */
     WHV_REGISTER_NAME reg_names[16];
     WHV_REGISTER_VALUE reg_vals[16];
+
     int n = 0;
 
     /* RIP starts at GPA 0 where we placed the HLT instruction. */
@@ -286,6 +287,7 @@ int main(int argc, char **argv)
 
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
                                          reg_names, n, reg_vals);
+
     if (FAILED(hr)) {
         log_hresult("WHvSetVirtualProcessorRegisters", hr);
         WHvDeleteVirtualProcessor(partition, 0);
