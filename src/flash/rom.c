@@ -107,22 +107,21 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
 int rom_init_interleaved(rom_t *rom, char *fn_low, char *fn_high, uint32_t address, int size, int mask, int file_offset,
                           uint32_t flags) {
         FILE *f_low = romfopen(fn_low, "rb");
-        FILE *f_high = romfopen(fn_high, "rb");
-        int c;
-
-        if (!f_low || !f_high) {
-                if (!f_low) {
-                        pclog("ROM image not found : %s\n", fn_low);
-                        error("Failed to open ROM image %s\n", fn_low);
-                } else
-                        fclose(f_low);
-                if (!f_high) {
-                        pclog("ROM image not found : %s\n", fn_high);
-                        error("Failed to open ROM image %s\n", fn_high);
-                } else
-                        fclose(f_high);
+        if (!f_low) {
+                pclog("ROM image not found : %s\n", fn_low);
+                error("Failed to open ROM image %s\n", fn_low);
                 return -1;
         }
+
+        FILE *f_high = romfopen(fn_high, "rb");
+        if (!f_high) {
+                pclog("ROM image not found : %s\n", fn_high);
+                error("Failed to open ROM image %s\n", fn_high);
+                fclose(f_low); /* Close any file opened successfully before returning */
+                return -1;
+        }
+
+        int c;
 
         /* Ensure interleaved ROM parts are large enough */
         fseek(f_low, 0, SEEK_END);

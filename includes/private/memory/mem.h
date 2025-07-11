@@ -222,6 +222,7 @@ void resetreadlookup();
 void mmu_invalidate(uint32_t addr);
 
 int loadbios();
+void mem_record_bios_crc(void);
 
 extern int purgeable_page_count;
 

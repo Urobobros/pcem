@@ -5,3 +5,5 @@ if(WIN32)
         target_link_libraries(check-whpx ${WINHVPLATFORM_LIB})
     endif()
 endif()
+
+install(PROGRAMS compare_logs.py DESTINATION bin)

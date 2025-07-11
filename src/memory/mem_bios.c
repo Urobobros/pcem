@@ -8,6 +8,8 @@
 #include "rom.h"
 #include "video.h"
 #include "xi8088.h"
+#include "hdd/minivhd/minivhd_util.h"
+#include "cpu_debug.h"
 
 static void romfread(uint8_t *buf, size_t size, size_t count, FILE *fp) {
         int result = fread(buf, size, count, fp);

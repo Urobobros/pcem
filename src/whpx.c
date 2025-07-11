@@ -1,8 +1,10 @@
 #ifdef USE_WHPX
 #include "whpx.h"
 #include "x86.h"
+#include "x86_flags.h"
 #include "ibm.h"
 #include "mem.h"
+#include "cpu_debug.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
@@ -481,6 +483,20 @@ int whpx_unmap_range(unsigned long long gpa, size_t size)
     return 0;
 }
 
+int whpx_unmap_range(unsigned long long gpa, size_t size)
+{
+    if (!whpx_partition)
+        return -1;
+
+    pclog("whpx: unmapping GPA 0x%llx size=0x%zx\n", gpa, size);
+    HRESULT hr = WHvUnmapGpaRange(whpx_partition, gpa, size);
+    if (FAILED(hr)) {
+        whpx_log_hresult("WHvUnmapGpaRange", hr);
+        return -1;
+    }
+    return 0;
+}
+
 int whpx_map_vga_memory(void *mem)
 {
     if (vga_memory_mapped)
@@ -544,6 +560,13 @@ static int whpx_sync_to_vcpu(void)
      * reset cpu_state.eflags may be 0, so ensure the reserved bit is set to
      * avoid WHPX rejecting the register state as invalid. */
     vals[idx++].Reg64 = (cpu_state.eflags & ~1ULL) | 0x2ULL;
+
+    regs[idx] = WHvX64RegisterCr0;
+    vals[idx++].Reg64 = cr0;
+    regs[idx] = WHvX64RegisterCr3;
+    vals[idx++].Reg64 = cr3;
+    regs[idx] = WHvX64RegisterCr4;
+    vals[idx++].Reg64 = cr4;
 
     regs[idx] = WHvX64RegisterCs;
     vals[idx].Segment.Base = cs;
@@ -613,6 +636,9 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     regs[idx++] = WHvX64RegisterRbp;
     regs[idx++] = WHvX64RegisterRsp;
     regs[idx++] = WHvX64RegisterRflags;
+    regs[idx++] = WHvX64RegisterCr0;
+    regs[idx++] = WHvX64RegisterCr3;
+    regs[idx++] = WHvX64RegisterCr4;
     regs[idx++] = WHvX64RegisterCs;
     regs[idx++] = WHvX64RegisterDs;
     regs[idx++] = WHvX64RegisterEs;
@@ -638,6 +664,9 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     EBP = vals[idx++].Reg64;
     ESP = vals[idx++].Reg64;
     cpu_state.eflags = vals[idx++].Reg64;
+    uint32_t new_cr0 = vals[idx++].Reg64;
+    uint32_t new_cr3 = vals[idx++].Reg64;
+    uint32_t new_cr4 = vals[idx++].Reg64;
     cpu_state.seg_cs.base = vals[idx].Segment.Base;
     cpu_state.seg_cs.limit = vals[idx].Segment.Limit;
     cpu_state.seg_cs.seg = vals[idx].Segment.Selector;
@@ -673,6 +702,46 @@ static int whpx_sync_from_vcpu(WHV_RUN_VP_EXIT_CONTEXT *ctx)
     cpu_state.seg_gs.seg = vals[idx].Segment.Selector;
     cpu_state.seg_gs.access = SEGATTR(vals[idx].Segment);
     idx++;
+
+    uint32_t old_cr0 = cr0;
+    uint32_t old_cr3 = cr3;
+    uint32_t old_cr4 = cr4;
+    cr0 = new_cr0;
+    cr3 = new_cr3;
+    cr4 = new_cr4;
+    cpu_log_cr_change("CR0", old_cr0, cr0);
+    cpu_log_cr_change("CR3", old_cr3, cr3);
+    cpu_log_cr_change("CR4", old_cr4, cr4);
+    if ((cr0 ^ old_cr0) & 0x80000001)
+        flushmmucache();
+    else if (cr3 != old_cr3)
+        flushmmucache_cr3();
+
+    cpu_386_flags_extract();
+    cpu_cur_status = 0;
+    use32 = stack32 = 0;
+    if (cr0 & 1) {
+        cpu_cur_status |= CPU_STATUS_PMODE;
+        if (cpu_state.eflags & VM_FLAG)
+            cpu_cur_status |= CPU_STATUS_V86;
+        else {
+            if (cpu_state.seg_cs.access2 & 0x40) {
+                cpu_cur_status |= CPU_STATUS_USE32;
+                use32 = 0x300;
+            }
+            if (cpu_state.seg_ss.access2 & 0x40) {
+                cpu_cur_status |= CPU_STATUS_STACK32;
+                stack32 = 1;
+            }
+        }
+    }
+    if (!(cpu_state.seg_ds.base == 0 && cpu_state.seg_ds.limit_low == 0 &&
+          cpu_state.seg_ds.limit_high == 0xffffffff))
+        cpu_cur_status |= CPU_STATUS_NOTFLATDS;
+    if (!(cpu_state.seg_ss.base == 0 && cpu_state.seg_ss.limit_low == 0 &&
+          cpu_state.seg_ss.limit_high == 0xffffffff))
+        cpu_cur_status |= CPU_STATUS_NOTFLATSS;
+    cpu_log_mode_change();
 
     return 0;
 }
@@ -745,6 +814,7 @@ int whpx_vcpu_run(void)
     const char *area = mem_addr_is_rom(cpu_state.pc) ? "ROM" :
                        (mem_addr_is_ram(cpu_state.pc) ? "RAM" : "???");
     uint32_t ip = cpu_state.pc - cs;
+
     pclog("whpx: GPA=0x%05X CS:IP=%04X:%04X area=%s exit=%u\n",
           cpu_state.pc, CS, ip, area, exit_ctx.ExitReason);
 
@@ -772,7 +842,9 @@ int whpx_vcpu_run(void)
         return 0;
     case WHvRunVpExitReasonMemoryAccess:
     case WHvRunVpExitReasonX64IoPortAccess:
-        /* Unhandled exits will be emulated by the interpreter */
+        /* Log the physical address and current instruction for parity with the interpreter */
+        cpu_log_current_insn();
+        cpu_log_gpa_write((uint32_t)exit_ctx.MemoryAccess.Gpa);
         return 0;
 #ifdef WHvRunVpExitReasonNone
     case WHvRunVpExitReasonNone:
@@ -799,10 +871,12 @@ void *whpx_get_ram_base(void) { return NULL; }
 size_t whpx_get_ram_size(void) { return 0; }
 int whpx_reset_vcpu(void) { return -1; }
 int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
+
 #endif /* _WIN32 */
 
 #else /* !USE_WHPX */
 int whpx_dummy; /* avoid empty object file */
 int whpx_reset_vcpu(void) { return -1; }
 int whpx_unmap_range(unsigned long long gpa, size_t size) { return -1; }
+
 #endif /* USE_WHPX */

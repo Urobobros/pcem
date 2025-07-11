@@ -17,6 +17,7 @@
 #include "ibm.h"
 
 #include "x86_ops.h"
+#include "cpu_debug.h"
 #include "codegen.h"
 #include "cpu.h"
 #include "keyboard.h"
@@ -672,9 +673,11 @@ void resetx86() {
                 cr0 = 1 << 30;
         else
                 cr0 = 0;
+        cpu_log_cr_change("CR0", 0, cr0);
         cpu_cache_int_enabled = 0;
         cpu_update_waitstates();
         cr4 = 0;
+        cpu_log_cr_change("CR4", 0, cr4);
         cpu_state.eflags = 0;
         cgate32 = 0;
         if (AT) {
@@ -720,9 +723,11 @@ void softresetx86() {
                 cr0 = 1 << 30;
         else
                 cr0 = 0;
+        cpu_log_cr_change("CR0", 0, cr0);
         cpu_cache_int_enabled = 0;
         cpu_update_waitstates();
         cr4 = 0;
+        cpu_log_cr_change("CR4", 0, cr4);
         cpu_state.eflags = 0;
         cgate32 = 0;
         if (AT) {

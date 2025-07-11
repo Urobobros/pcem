@@ -182,6 +182,10 @@ if(USE_NETWORKING AND USE_PCAP_NETWORKING)
 endif()
 
 find_package(OpenGL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CAPSTONE REQUIRED capstone)
+include_directories(${CAPSTONE_INCLUDE_DIRS})
+set(PCEM_ADDITIONAL_LIBS ${PCEM_ADDITIONAL_LIBS} ${CAPSTONE_LIBRARIES})
 
 add_subdirectory(src)
 add_subdirectory(tools)

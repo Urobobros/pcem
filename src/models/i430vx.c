@@ -42,6 +42,7 @@ static void pam_update(uint32_t addr, uint32_t size, int state)
 #endif
 
 static void i430vx_map(uint32_t addr, uint32_t size, int state) {
+
         switch (state & 3) {
         case 0:
                 mem_set_mem_state(addr, size, MEM_READ_EXTERNAL | MEM_WRITE_EXTERNAL);
@@ -59,6 +60,7 @@ static void i430vx_map(uint32_t addr, uint32_t size, int state) {
         flushmmucache_nopc();
         pam_update(addr, size, state);
 }
+
 
 void i430vx_write(int func, int addr, uint8_t val, void *priv) {
         if (func)
