@@ -210,9 +210,9 @@ int main(int argc, char **argv)
      * pointer. Without these the hypervisor stops the vCPU with a
      * MemoryAccess exit before our HLT executes.
      */
+    WHV_REGISTER_NAME reg_names[16];
+    WHV_REGISTER_VALUE reg_vals[16];
 
-    WHV_REGISTER_NAME reg_names[10];
-    WHV_REGISTER_VALUE reg_vals[10];
     int n = 0;
 
     /* RIP starts at GPA 0 where we placed the HLT instruction. */
@@ -252,6 +252,30 @@ int main(int argc, char **argv)
             n++;
         }
 
+        reg_names[n] = WHvX64RegisterGdtr;
+        reg_vals[n].Table.Base = 0;
+        reg_vals[n].Table.Limit = 0xFFFF;
+        n++;
+
+        reg_names[n] = WHvX64RegisterIdtr;
+        reg_vals[n].Table.Base = 0;
+        reg_vals[n].Table.Limit = 0xFFFF;
+        n++;
+
+        reg_names[n] = WHvX64RegisterTr;
+        reg_vals[n].Segment.Base = 0;
+        reg_vals[n].Segment.Limit = 0xFFFF;
+        reg_vals[n].Segment.Selector = 0;
+        SEGATTR(reg_vals[n].Segment) = 0x008B;
+        n++;
+
+        reg_names[n] = WHvX64RegisterLdtr;
+        reg_vals[n].Segment.Base = 0;
+        reg_vals[n].Segment.Limit = 0xFFFF;
+        reg_vals[n].Segment.Selector = 0;
+        SEGATTR(reg_vals[n].Segment) = 0x0082;
+        n++;
+
         reg_names[n] = WHvX64RegisterCr0;
         reg_vals[n].Reg64 = 0x10;
         n++;
@@ -260,18 +284,6 @@ int main(int argc, char **argv)
         reg_vals[n].Reg64 = 0x2;
         n++;
     }
-
-    /* Data segments. */
-    for (int i = 3; i <= 7; i++) {
-        reg_vals[i].Segment.Base = 0;
-        reg_vals[i].Segment.Limit = 0xFFFF;
-        reg_vals[i].Segment.Selector = 0;
-        SEGATTR(reg_vals[i].Segment) = 0x0092;
-    }
-
-    /* Real mode CR0 and default RFLAGS value. */
-    reg_vals[8].Reg64 = 0x10;
-    reg_vals[9].Reg64 = 0x2;
 
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
                                          reg_names, n, reg_vals);
