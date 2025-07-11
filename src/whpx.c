@@ -1,6 +1,7 @@
 #ifdef USE_WHPX
 #include "whpx.h"
 #include "x86.h"
+#include "x86_flags.h"
 #include "ibm.h"
 #include "mem.h"
 #include "cpu_debug.h"
