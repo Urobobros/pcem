@@ -483,20 +483,6 @@ int whpx_unmap_range(unsigned long long gpa, size_t size)
     return 0;
 }
 
-int whpx_unmap_range(unsigned long long gpa, size_t size)
-{
-    if (!whpx_partition)
-        return -1;
-
-    pclog("whpx: unmapping GPA 0x%llx size=0x%zx\n", gpa, size);
-    HRESULT hr = WHvUnmapGpaRange(whpx_partition, gpa, size);
-    if (FAILED(hr)) {
-        whpx_log_hresult("WHvUnmapGpaRange", hr);
-        return -1;
-    }
-    return 0;
-}
-
 int whpx_map_vga_memory(void *mem)
 {
     if (vga_memory_mapped)
