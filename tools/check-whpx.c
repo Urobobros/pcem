@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #ifdef _WIN32
 #include <windows.h>
 #include <WinHvPlatform.h>
@@ -94,9 +95,20 @@ static void log_hresult(const char *prefix, HRESULT hr)
     }
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 #ifdef _WIN32
+    bool real_mode = false;
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--16") || !strcmp(argv[i], "--real") ||
+            !strcmp(argv[i], "16")) {
+            real_mode = true;
+        } else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
+            printf("Usage: %s [--16]\n", argv[0]);
+            printf("  --16      run guest in 16-bit real mode (default is 32-bit)\n");
+            return 0;
+        }
+    }
     HRESULT hr;
     /* BOOL is 4 bytes while BOOLEAN is 1 byte. WHvGetCapability expects
        a 4-byte BOOL buffer so using BOOLEAN would trigger
@@ -198,31 +210,56 @@ int main(void)
      * pointer. Without these the hypervisor stops the vCPU with a
      * MemoryAccess exit before our HLT executes.
      */
-    WHV_REGISTER_NAME reg_names[] = {
-        WHvX64RegisterRip,
-        WHvX64RegisterCs,
-        WHvX64RegisterRsp,
-        WHvX64RegisterDs,
-        WHvX64RegisterEs,
-        WHvX64RegisterSs,
-        WHvX64RegisterFs,
-        WHvX64RegisterGs,
-        WHvX64RegisterCr0,
-        WHvX64RegisterRflags
-    };
-    WHV_REGISTER_VALUE reg_vals[10] = {0};
+
+    WHV_REGISTER_NAME reg_names[10];
+    WHV_REGISTER_VALUE reg_vals[10];
+    int n = 0;
 
     /* RIP starts at GPA 0 where we placed the HLT instruction. */
-    reg_vals[0].Reg64 = 0;
+    reg_names[n] = WHvX64RegisterRip;
+    reg_vals[n].Reg64 = 0;
+    n++;
 
-    /* Minimal real-mode code segment descriptor. */
-    reg_vals[1].Segment.Base = 0;
-    reg_vals[1].Segment.Limit = 0xFFFF;
-    reg_vals[1].Segment.Selector = 0;
-    SEGATTR(reg_vals[1].Segment) = 0x0093; /* 16-bit code, present, ring 0 */
+    /* Code segment descriptor. */
+    reg_names[n] = WHvX64RegisterCs;
+    reg_vals[n].Segment.Base = 0;
+    reg_vals[n].Segment.Selector = 0;
+    if (real_mode) {
+        reg_vals[n].Segment.Limit = 0xFFFF;
+        SEGATTR(reg_vals[n].Segment) = 0x0093; /* 16-bit */
+    } else {
+        reg_vals[n].Segment.Limit = 0xFFFFFFFF;
+        SEGATTR(reg_vals[n].Segment) = 0xC09B; /* flat 32-bit */
+    }
+    n++;
 
     /* Provide a stack pointer within the mapped page. */
-    reg_vals[2].Reg64 = 0x800;
+    reg_names[n] = WHvX64RegisterRsp;
+    reg_vals[n].Reg64 = 0x800;
+    n++;
+
+    if (real_mode) {
+        WHV_REGISTER_NAME segs[] = {
+            WHvX64RegisterDs, WHvX64RegisterEs, WHvX64RegisterSs,
+            WHvX64RegisterFs, WHvX64RegisterGs
+        };
+        for (int i = 0; i < 5; i++) {
+            reg_names[n] = segs[i];
+            reg_vals[n].Segment.Base = 0;
+            reg_vals[n].Segment.Limit = 0xFFFF;
+            reg_vals[n].Segment.Selector = 0;
+            SEGATTR(reg_vals[n].Segment) = 0x0092; /* data */
+            n++;
+        }
+
+        reg_names[n] = WHvX64RegisterCr0;
+        reg_vals[n].Reg64 = 0x10;
+        n++;
+
+        reg_names[n] = WHvX64RegisterRflags;
+        reg_vals[n].Reg64 = 0x2;
+        n++;
+    }
 
     /* Data segments. */
     for (int i = 3; i <= 7; i++) {
@@ -237,9 +274,8 @@ int main(void)
     reg_vals[9].Reg64 = 0x2;
 
     hr = WHvSetVirtualProcessorRegisters(partition, 0,
-                                         reg_names,
-                                         sizeof(reg_names) / sizeof(reg_names[0]),
-                                         reg_vals);
+                                         reg_names, n, reg_vals);
+
     if (FAILED(hr)) {
         log_hresult("WHvSetVirtualProcessorRegisters", hr);
         WHvDeleteVirtualProcessor(partition, 0);
