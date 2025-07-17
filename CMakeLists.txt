@@ -109,6 +109,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
         message("       DEBUG_EXTRA debug output: ${PCEM_DEBUG_EXTRA}")
         option(PCEM_PRINTER_DEBUG "Build PCem with PRINTER_DEBUG debug output" OFF)
         message("       PRINTER_DEBUG debug output: ${PCEM_PRINTER_DEBUG}")
+        option(PCEM_IO_DEBUG "Build PCem with IO_DEBUG debug output" OFF)
+        message("       IO_DEBUG debug output: ${PCEM_IO_DEBUG}")
 endif()
 
 message("***************************************************************")
