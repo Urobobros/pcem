@@ -19,7 +19,7 @@ void disc_new(int drive, char *fn);
 void disc_close(int drive);
 void disc_init();
 void disc_reset();
-void disc_poll();
+void disc_poll(void *p);
 void disc_seek(int drive, int track);
 void disc_readsector(int drive, int sector, int track, int side, int density, int sector_size);
 void disc_writesector(int drive, int sector, int track, int side, int density, int sector_size);
@@ -33,7 +33,7 @@ void disc_set_drivesel(int drive);
 void disc_set_motor_enable(int motor_enable);
 extern int disc_drivesel;
 
-void fdc_callback();
+void fdc_callback(void *p);
 int  fdc_data(uint8_t dat);
 void fdc_spindown();
 void fdc_finishread();

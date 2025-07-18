@@ -153,7 +153,7 @@ am__pcem_SOURCES_DIST = 386.c 386_dynarec.c 386_dynarec_ops.c 808x.c \
 	joystick_standard.c joystick_sw_pad.c joystick_tm_fcs.c \
 	keyboard.c keyboard_amstrad.c keyboard_at.c keyboard_olim24.c \
 	keyboard_pcjr.c keyboard_xt.c laserxt.c lpt.c lpt_dac.c \
-	lpt_dss.c mca.c mcr.c mem.c mem_bios.c mfm_at.c mfm_xebec.c \
+        lpt_dss.c mca.c mcr.c mem.c mem_bios.c globals.c mfm_at.c mfm_xebec.c \
 	model.c mouse.c mouse_msystems.c mouse_ps2.c mouse_serial.c \
 	neat.c nmi.c nvr.c olivetti_m24.c opti495.c paths.c pc.c \
 	pc87306.c pci.c pic.c piix.c pit.c ppi.c ps1.c ps2.c ps2_mca.c \
@@ -781,7 +781,7 @@ pcem_SOURCES = 386.c 386_dynarec.c 386_dynarec_ops.c 808x.c acc2036.c \
 	joystick_sw_pad.c joystick_tm_fcs.c keyboard.c \
 	keyboard_amstrad.c keyboard_at.c keyboard_olim24.c \
 	keyboard_pcjr.c keyboard_xt.c laserxt.c lpt.c lpt_dac.c \
-	lpt_dss.c mca.c mcr.c mem.c mem_bios.c mfm_at.c mfm_xebec.c \
+        lpt_dss.c mca.c mcr.c mem.c mem_bios.c globals.c mfm_at.c mfm_xebec.c \
 	model.c mouse.c mouse_msystems.c mouse_ps2.c mouse_serial.c \
 	neat.c nmi.c nvr.c olivetti_m24.c opti495.c paths.c pc.c \
 	pc87306.c pci.c pic.c piix.c pit.c ppi.c ps1.c ps2.c ps2_mca.c \
@@ -827,8 +827,8 @@ pcem_SOURCES = 386.c 386_dynarec.c 386_dynarec_ops.c 808x.c acc2036.c \
 	$(am__append_15) $(am__append_16) $(am__append_17) \
 	$(am__append_20)
 pcem_CFLAGS = $(subst -fpermissive,,$(shell $(WX_CONFIG_PATH) \
-	--cxxflags) $(shell sdl2-config --cflags)) $(am__append_7) \
-	$(am__append_11) $(am__append_18) $(am__append_22)
+        --cxxflags) $(shell sdl2-config --cflags)) $(am__append_7) \
+        $(am__append_11) $(am__append_18) $(am__append_22) -fcommon
 pcem_CXXFLAGS = $(shell $(WX_CONFIG_PATH) --cxxflags) $(shell \
 	sdl2-config --cflags) $(am__append_12) $(am__append_19) \
 	$(am__append_23)

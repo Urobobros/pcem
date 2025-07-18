@@ -235,7 +235,7 @@ static int oldkey[272];
 static int keydelay[272];
 
 void (*keyboard_send)(uint8_t val);
-void (*keyboard_poll)();
+void (*keyboard_poll)(void *p);
 int keyboard_scan = 1;
 
 void keyboard_process()

@@ -29,7 +29,7 @@ codegen_ops_misc.c codegen_ops_mov.c codegen_ops_stack.c codegen_reg.c codegen_t
 cpu_tables.c dells200.c device.c disc.c disc_fdi.c disc_img.c disc_sector.c dma.c esdi_at.c fdc.c fdc37c665.c fdd.c fdi2raw.c gameport.c \
 hdd.c hdd_esdi.c hdd_file.c headland.c i430lx.c i430fx.c i430vx.c ide.c ide_atapi.c ide_sff8038i.c intel.c intel_flash.c io.c jim.c joystick_ch_flightstick_pro.c joystick_standard.c joystick_sw_pad.c \
 joystick_tm_fcs.c keyboard.c keyboard_amstrad.c keyboard_at.c keyboard_olim24.c keyboard_pcjr.c keyboard_xt.c \
-laserxt.c lpt.c lpt_dac.c lpt_dss.c mca.c mcr.c mem.c mem_bios.c mfm_at.c mfm_xebec.c model.c mouse.c mouse_msystems.c mouse_ps2.c mouse_serial.c mvp3.c neat.c nmi.c nvr.c olivetti_m24.c \
+laserxt.c lpt.c lpt_dac.c lpt_dss.c mca.c mcr.c mem.c mem_bios.c globals.c mfm_at.c mfm_xebec.c model.c mouse.c mouse_msystems.c mouse_ps2.c mouse_serial.c mvp3.c neat.c nmi.c nvr.c olivetti_m24.c \
 opti495.c paths.c pc.c pc87306.c pci.c pic.c piix.c pit.c ppi.c ps1.c ps2.c ps2_mca.c ps2_nvr.c nvr_tc8521.c rom.c rtc.c rtc_tc8521.c scat.c scsi.c scsi_53c400.c scsi_aha1540.c scsi_cd.c scsi_hd.c scsi_zip.c \
 serial.c sio.c sis496.c sl82c460.c sound.c sound_ad1848.c sound_adlib.c sound_adlibgold.c sound_audiopci.c sound_cms.c sound_emu8k.c sound_gus.c \
 sound_mpu401_uart.c sound_opl.c sound_pas16.c sound_ps1.c sound_pssj.c sound_sb.c sound_sb_dsp.c sound_sn76489.c \
@@ -55,7 +55,7 @@ resid-fp/wave6581_P_T.cc resid-fp/wave6581__ST.cc resid-fp/wave8580_PS_.cc \
 resid-fp/wave8580_PST.cc resid-fp/wave8580_P_T.cc resid-fp/wave8580__ST.cc \
 resid-fp/wave.cc
 
-pcem_CFLAGS = $(subst -fpermissive,,$(shell $(WX_CONFIG_PATH) --cxxflags) $(shell sdl2-config --cflags))
+pcem_CFLAGS = $(subst -fpermissive,,$(shell $(WX_CONFIG_PATH) --cxxflags) $(shell sdl2-config --cflags)) -fcommon
 pcem_CXXFLAGS = $(shell $(WX_CONFIG_PATH) --cxxflags) $(shell sdl2-config --cflags)
 pcem_LDADD = @LIBS@
 pcem_SOURCES += wx-main.cc wx-config_sel.c wx-dialogbox.cc wx-utils.cc wx-app.cc \
@@ -127,13 +127,19 @@ if !HAS_OFF64T
 #pcem_CFLAGS += -Doff64_t=off_t -Dfopen64=fopen -Dfseeko64=fseek -Dftello64=ftell
 endif
 
+# Release-specific flags
 if RELEASE_BUILD
 pcem_CFLAGS += -DRELEASE_BUILD
 pcem_CXXFLAGS += -DRELEASE_BUILD
 endif
 
+# Optimisation hint for the ARM64 build only. This causes problems when
+# building for other architectures such as x86_64, so wrap it in the
+# appropriate conditional.
+if CPU_ARM64
 pcem_CFLAGS += -mtune=cortex-a53
 pcem_CXXFLAGS += -mtune=cortex-a53
+endif
 #pcem_LDFLAGS = -flto -O3 -mtune=cortex-a15
 
 # pcem_CFLAGS += -fprofile-use
