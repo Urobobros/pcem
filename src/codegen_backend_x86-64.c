@@ -13,6 +13,7 @@
 #if defined(__linux__) || defined(__APPLE__)
 #include <sys/mman.h>
 #include <unistd.h>
+#include <stdlib.h>
 #endif
 #if defined WIN32 || defined _WIN32 || defined _WIN32
 #include <windows.h>
@@ -312,7 +313,7 @@ void codegen_backend_init()
         host_x86_XOR32_REG_REG(block, REG_EDI, REG_EDI);
         host_x86_XOR32_REG_REG(block, REG_ESI, REG_ESI);
 #endif
-	host_x86_CALL(block, (uintptr_t)x86gpf);
+        host_x86_CALL(block, (void *)x86gpf);
         codegen_exit_rout = &codeblock[block_current].data[block_pos];
         host_x86_ADD64_REG_IMM(block, REG_RSP, 0x38);
         host_x86_POP(block, REG_R15);
