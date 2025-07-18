@@ -9,12 +9,20 @@ OpenAL
 
 and their dependencies.
 
+On Debian/Ubuntu systems these can be installed with:
+
+  sudo apt-get install build-essential libsdl2-dev libwxgtk3.2-dev libopenal-dev
+
 Open a terminal window, navigate to the PCem directory then enter
 
 ./configure --enable-release
 make
 
 then ./pcem to run.
+
+For a 32-bit build on a 64-bit system, install multilib development packages and use:
+
+  make -f src/Makefile.linux32-wx-sdl2
 
 The Linux version stores BIOS ROM images, configuration files, and other data in ~/.pcem
 
