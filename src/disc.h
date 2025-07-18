@@ -33,7 +33,7 @@ void disc_set_drivesel(int drive);
 void disc_set_motor_enable(int motor_enable);
 extern int disc_drivesel;
 
-void fdc_callback();
+void fdc_callback(void *p);
 int  fdc_data(uint8_t dat);
 void fdc_spindown();
 void fdc_finishread();

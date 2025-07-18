@@ -70,7 +70,7 @@ typedef struct FDC
 
 static FDC fdc;
 
-void fdc_callback();
+void fdc_callback(void *p);
 //#define SECTORS 9
 int lastbyte=0;
 uint8_t disc_3f7;
@@ -462,7 +462,7 @@ void fdc_write(uint16_t addr, uint8_t val, void *priv)
 //                                        fdc.stat = 0x10 | (fdc.stat & 0xf);
                                         discint = 8;
                                         fdc.pos = 0;
-                                        fdc_callback();
+                                        fdc_callback(NULL);
                                 }
                                 else
                                 {
@@ -493,13 +493,13 @@ void fdc_write(uint16_t addr, uint8_t val, void *priv)
                                 fdc.lastdrive = fdc.drive;
                                 discint = 0x0e;
                                 fdc.pos = 0;
-                                fdc_callback();
+                                fdc_callback(NULL);
                                 break;
                                 case 0x10: /*Get version*/
                                 fdc.lastdrive = fdc.drive;
                                 discint = 0x10;
                                 fdc.pos = 0;
-                                fdc_callback();
+                                fdc_callback(NULL);
                                 break;
                                 case 0x12: /*Set perpendicular mode*/
                                 fdc.pnum=0;
@@ -518,7 +518,7 @@ void fdc_write(uint16_t addr, uint8_t val, void *priv)
                                 fdc.lastdrive = fdc.drive;
                                 discint = fdc.command;
                                 fdc.pos = 0;
-                                fdc_callback();
+                                fdc_callback(NULL);
                                 break;
 
                                 case 0x18:
@@ -526,7 +526,7 @@ void fdc_write(uint16_t addr, uint8_t val, void *priv)
                                 fdc.lastdrive = fdc.drive;
                                 discint = 0x10;
                                 fdc.pos = 0;
-                                fdc_callback();
+                                fdc_callback(NULL);
                                 /* fdc.stat = 0x10;
                                 discint  = 0xfc;
                                 fdc_callback(); */
@@ -788,7 +788,7 @@ uint8_t fdc_read(uint16_t addr, void *priv)
         return temp;
 }
 
-void fdc_callback()
+void fdc_callback(void *p)
 {
         int temp;
         int doseek = 0;
