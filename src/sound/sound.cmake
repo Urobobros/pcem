@@ -30,6 +30,7 @@ set(PCEM_PRIVATE_API ${PCEM_PRIVATE_API}
         ${CMAKE_SOURCE_DIR}/includes/private/sound/sound_ssi2001.h
         ${CMAKE_SOURCE_DIR}/includes/private/sound/sound_wss.h
         ${CMAKE_SOURCE_DIR}/includes/private/sound/sound_ym7128.h
+        ${CMAKE_SOURCE_DIR}/includes/private/sound/sound_hda.h
         )
 
 set(PCEM_SRC ${PCEM_SRC}
@@ -56,6 +57,7 @@ set(PCEM_SRC ${PCEM_SRC}
         sound/sound_ssi2001.c
         sound/sound_wss.c
         sound/sound_ym7128.c
+        sound/sound_hda.c
         sound/soundopenal.c
         )
 
