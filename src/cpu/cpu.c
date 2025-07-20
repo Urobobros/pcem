@@ -86,6 +86,7 @@ int cpu_iscyrix;
 int cpu_16bitbus;
 int cpu_busspeed;
 int cpu_use_dynarec;
+int cpu_use_kvm;
 int cpu_cyrix_alignment;
 
 uint64_t cpu_CR4_mask;

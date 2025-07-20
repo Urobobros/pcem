@@ -433,3 +433,29 @@ PC1512 mouse | The PC1512's perculiar quadrature mouse. You need Amstrad's actua
 PS/2 mouse | A standard 2 button PS/2 mouse. As with serial, compatible drivers are common.
 Microsoft PS/2 Intellimouse | A PS/2 mouse with mouse wheel.
 ATAPI CD-ROM | Works with OAKCDROM.SYS, VDD-IDE.SYS, and the internal drivers of every OS I've tried.
+
+## Next Steps for KVM Integration
+
+The repository now contains an optional KVM backend. The implementation can synchronise CPU state,
+handle KVM I/O and MMIO exits and will fall back to software emulation if KVM initialization fails.
+BIOS ROM is mapped read-only via KVM so the guest can boot with real firmware.
+KVM exit reasons are logged for debugging and pending PIC interrupts are injected when the IRQ window is open.
+PCem now checks `/dev/kvm` at startup so it can disable the option automatically if the device or API is unavailable.
+The backend can be enabled with the `--kvm` command-line flag or by setting `cpu_use_kvm=1` in the configuration file.
+To progress further, follow these staged tasks:
+1. ~~Review the CPU emulation loop and ensure KVM calls are encapsulated in a backend abstraction.~~ *(implemented)*
+2. ~~Map guest memory regions in a way compatible with the KVM API and existing PCem memory manager.~~ *(initial RAM and BIOS mapping implemented)*
+3. ~~Implement saving and restoring of CPU registers between PCem structures and KVM state.~~
+4. ~~Handle interrupts and I/O traps so that devices emulated in PCem remain functional.~~
+5. ~~Add error handling for cases when /dev/kvm or required features are unavailable and fall back to software emulation.~~
+6. ~~Expand configuration options and GUI elements to let users enable or disable KVM at runtime.~~ *(command line option added)*
+7. ~~Integrate logging of KVM exit reasons to aid debugging and development.~~
+8. ~~Compare performance and compatibility of KVM with the current dynamic recompiler using standardized test suites.~~ *(benchmark script added)*
+9. ~~Document any host dependencies, kernel modules, or permissions needed to use KVM.~~ *(see below)*
+10. Discuss the implementation plan with the PCem community to ensure it aligns with project goals.
+## Host requirements for KVM
+PCem requires access to the Linux KVM API in order to run with hardware virtualization.
+Ensure the `kvm` kernel module is loaded and that your user has permission to open `/dev/kvm` (typically by being in the `kvm` group or by running PCem as root). Hardware virtualization must be enabled in the BIOS.
+
+A helper script `scripts/bench_kvm.sh` is provided to quickly gauge the performance difference between KVM and pure emulation.
+
