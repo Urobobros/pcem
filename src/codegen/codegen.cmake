@@ -1,6 +1,7 @@
 set(PCEM_PRIVATE_API ${PCEM_PRIVATE_API}
         ${CMAKE_SOURCE_DIR}/includes/private/codegen/codegen_accumulate.h
         ${CMAKE_SOURCE_DIR}/includes/private/codegen/codegen_allocator.h
+        ${CMAKE_SOURCE_DIR}/includes/private/codegen/codegen_cache.h
         ${CMAKE_SOURCE_DIR}/includes/private/codegen/codegen_backend_arm64_defs.h
         ${CMAKE_SOURCE_DIR}/includes/private/codegen/codegen_backend_arm64.h
         ${CMAKE_SOURCE_DIR}/includes/private/codegen/codegen_backend_arm64_ops.h
@@ -52,6 +53,7 @@ set(PCEM_SRC ${PCEM_SRC}
         codegen/codegen.c
         codegen/codegen_accumulate.c
         codegen/codegen_allocator.c
+        codegen/codegen_cache.c
         codegen/codegen_block.c
         codegen/codegen_ir.c
         codegen/codegen_ops.c

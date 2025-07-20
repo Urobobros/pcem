@@ -34,6 +34,13 @@ uint8_t *codeblock_allocator_get_ptr(struct mem_block_t *block);
 /*Cache clean memory block list*/
 void codegen_allocator_clean_blocks(struct mem_block_t *block);
 
+/*Return total size of memory used by block chain*/
+size_t codeblock_allocator_get_size(struct mem_block_t *block, int last_pos);
+/*Copy memory from block chain into buffer*/
+size_t codeblock_allocator_copy(struct mem_block_t *block, int last_pos, uint8_t *dest);
+/*Write buffer contents into block chain*/
+void codeblock_allocator_write(struct mem_block_t *block, int last_pos, const uint8_t *src);
+
 extern int codegen_allocator_usage;
 
 #endif /* _CODEGEN_ALLOCATOR_H_ */

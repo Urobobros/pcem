@@ -56,6 +56,13 @@ typedef struct codeblock_t {
         /*First mem_block_t used by this block. Any subsequent mem_block_ts
           will be in the list starting at head_mem_block->next.*/
         struct mem_block_t *head_mem_block;
+
+        /*Size of compiled code in bytes*/
+        uint32_t compiled_size;
+        /*Final position within the last memory block*/
+        int last_pos;
+        /*CRC32 of the original instruction bytes*/
+        uint32_t crc;
 } codeblock_t;
 
 extern codeblock_t *codeblock;
