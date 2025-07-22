@@ -665,3 +665,8 @@ CPU cpus_VIA_100MHz[] = {
                 {"C3/800",        CPU_CYRIX_III, fpus_builtin, 20, 800000000, 3, 33333333, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC |
            CPU_REQUIRES_DYNAREC, 18,18,9,9, 100},*/
         {"", -1, 0, 0, 0}};
+
+CPU cpus_WHPX[] = {
+        {"WHPX", CPU_WHPX, fpus_builtin, 20, 1000000000, 3, 33333333, 0, 0, 0,
+         0, 18, 18, 9, 9, 64},
+        {"", -1, 0, 0, 0}};

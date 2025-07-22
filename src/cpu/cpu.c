@@ -1125,6 +1125,10 @@ void cpu_set() {
                 codegen_timing_set(&codegen_timing_cyrixiii);
                 break;
 
+        case CPU_WHPX:
+                /* WHPX acceleration uses host execution */
+                break;
+
         default:
                 fatal("cpu_set : unknown CPU type %i\n", cpu_s->cpu_type);
         }
@@ -1698,6 +1702,11 @@ void cpu_CPUID() {
                         break;
                 }
                 break;
+
+        case CPU_WHPX:
+                /* CPUID not emulated */
+                EAX = EBX = ECX = EDX = 0;
+                break;
         }
 }
 
@@ -1732,6 +1741,9 @@ void cpu_RDMSR() {
                         EAX = cpu_multi & 3;
                         break;
                 }
+                break;
+
+        case CPU_WHPX:
                 break;
 
         case CPU_PENTIUM:
@@ -1840,6 +1852,9 @@ void cpu_WRMSR() {
                         msr.fcr3 = EAX | ((uint64_t)EDX << 32);
                         break;
                 }
+                break;
+
+        case CPU_WHPX:
                 break;
 
         case CPU_PENTIUM:

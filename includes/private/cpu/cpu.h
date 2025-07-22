@@ -48,6 +48,7 @@ extern int fpu_type;
 #define CPU_CELERON 30
 #define CPU_CELERON_A 31
 #define CPU_CYRIX_III 32
+#define CPU_WHPX 33
 
 #define MANU_INTEL 0
 #define MANU_AMD 1
@@ -97,6 +98,7 @@ extern CPU cpus_K6_SS7[];
 extern CPU cpus_PentiumPro[];
 extern CPU cpus_Slot1_100MHz[];
 extern CPU cpus_VIA_100MHz[];
+extern CPU cpus_WHPX[];
 
 extern CPU cpus_pcjr[];
 extern CPU cpus_europc[];
@@ -177,5 +179,9 @@ int fpu_get_type(int model, int manu, int cpu, const char *internal_name);
 const char *fpu_get_internal_name(int model, int manu, int cpu, int type);
 const char *fpu_get_name_from_index(int model, int manu, int cpu, int c);
 int fpu_get_type_from_index(int model, int manu, int cpu, int c);
+
+void whpx_init(void);
+void whpx_run(int cycles);
+void whpx_shutdown(void);
 
 #endif /* _CPU_H_ */

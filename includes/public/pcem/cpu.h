@@ -64,5 +64,6 @@ extern CPU cpus_K6_SS7[];
 extern CPU cpus_PentiumPro[];
 extern CPU cpus_Slot1_100MHz[];
 extern CPU cpus_VIA_100MHz[];
+extern CPU cpus_WHPX[];
 
 #endif /* _PCEM_CPU_H_ */
