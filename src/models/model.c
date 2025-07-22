@@ -774,12 +774,16 @@ MODEL m_super16te = {"[8088] Hyundai Super16TE",
                       64,
                       xt_init,
                       NULL};
-MODEL m_ibmpc = {"[8088] IBM PC", ROM_IBMPC, "ibmpc", {{"", cpus_8088}, {"", NULL}, {"", NULL}}, MODEL_GFX_NONE, 64, 640, 32,
+MODEL m_ibmpc = {"[8088] IBM PC", ROM_IBMPC, "ibmpc",
+                 {{"", cpus_8088}, {"whpx", cpus_WHPX}, {"", NULL}},
+                 MODEL_GFX_NONE, 64, 640, 32,
                  xt_init,         NULL};
 MODEL m_ibmpcjr = {"[8088] IBM PCjr", ROM_IBMPCJR, "ibmpcjr", {{"", cpus_pcjr}, {"", NULL}, {"", NULL}},
                    MODEL_GFX_FIXED,   128,         640,       64,
                    pcjr_init,         &pcjr_device};
-MODEL m_ibmxt = {"[8088] IBM XT", ROM_IBMXT, "ibmxt", {{"", cpus_8088}, {"", NULL}, {"", NULL}}, MODEL_GFX_NONE, 64, 640, 64,
+MODEL m_ibmxt = {"[8088] IBM XT", ROM_IBMXT, "ibmxt",
+                 {{"", cpus_8088}, {"whpx", cpus_WHPX}, {"", NULL}},
+                 MODEL_GFX_NONE, 64, 640, 64,
                  xt_init,         NULL};
 MODEL m_jukopc = {"[8088] Juko XT clone",
                   ROM_JUKOPC,

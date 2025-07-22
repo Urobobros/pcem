@@ -62,4 +62,9 @@ set(PCEM_SRC ${PCEM_SRC}
         cpu/x86seg.c
         cpu/x87.c
         cpu/x87_timings.c
+        cpu/whpx.c
         )
+
+if(WIN32)
+        set(PCEM_ADDITIONAL_LIBS ${PCEM_ADDITIONAL_LIBS} WinHvPlatform WinHvEmulation)
+endif()

@@ -79,6 +79,7 @@ The menu is a pop-up menu in the Linux/BSD port. Right-click on the main window 
 captured.
 
 CD-ROM support currently only accesses `/dev/cdrom`. It has not been heavily tested.
+Windows builds can optionally use the Windows Hypervisor Platform for faster CPU emulation via the `whpx` CPU type.
 
 ## Links
 
