@@ -59,6 +59,7 @@ typedef struct sb_ct1745_mixer_t {
 
         int bass_l, bass_r;
         int treble_l, treble_r;
+        int surround;
 
         int output_selector;
 #define OUTPUT_MIC 1
