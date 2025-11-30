@@ -73,7 +73,7 @@ static int mouse_valid(int type, int model) {
 /*static int mpu401_available(int sound_card)
 {
         char* name = sound_card_get_internal_name(sound_card);
-        if (name && (!strcmp(name, "sb16") || !strcmp(name, "sbawe32")))
+        if (name && (!strcmp(name, "sb16") || !strcmp(name, "sbawe32") || !strcmp(name, "sbawe64")))
                 return TRUE;
 
         return FALSE;
