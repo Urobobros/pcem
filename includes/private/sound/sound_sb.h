@@ -14,6 +14,7 @@ extern device_t sb_pro_v2_device;
 extern device_t sb_pro_mcv_device;
 extern device_t sb_16_device;
 extern device_t sb_awe32_device;
+extern device_t sb_awe64_device;
 
 /* SB 2.0 CD version */
 typedef struct sb_ct1335_mixer_t {
@@ -59,6 +60,7 @@ typedef struct sb_ct1745_mixer_t {
 
         int bass_l, bass_r;
         int treble_l, treble_r;
+        int surround;
 
         int output_selector;
 #define OUTPUT_MIC 1
