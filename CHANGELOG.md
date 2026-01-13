@@ -167,6 +167,7 @@
 - WinChip emulation (including MMX emulation)
 - New graphics cards - S3 Trio64, Trident TGUI9440AGi, ATI VGA Edge-16, ATI VGA Charger, OAK OTI-067, ATI Mach64
 - New sound cards - Adlib Gold, Windows Sound System, SB AWE32
+- New sound cards - SB AWE64 (uses AWE32 core)
 - Improved GUS emulation
 - MPU-401 emulation (UART mode only) on SB16 and AWE32
 - Fixed DMA bug, floppy drives work properly in Windows 3.x

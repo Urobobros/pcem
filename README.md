@@ -393,11 +393,16 @@ Hardware | Notes
 * SB Pro v1.0 - Stereo with twin OPL2 chips.
 * SB Pro v2.0 - Stereo with OPL 3 chip
 * SB 16 - 16 bit stereo
+  * Mixer register `0x48` enables a simple "Surround" effect, similar to
+    Creative's 3D Stereo enhancement.
 * SB AWE32 - SB 16 + wavetable MIDI. This requires a ROM dump from a real AWE32.
+* SB AWE64 - Refinement of the AWE32 design. PCem emulates it as an AWE32,
+  while x86Box offers a dedicated AWE64 implementation.
 
 All cards are set to Address 220, IRQ 7 and DMA 1 (and High DMA 5). IRQ and DMA can be changed for the SB16 & AWE32 in the drivers. The relevant SET line for autoexec.bat is `SET BLASTER = A220 I7 D1 Tx` - where Tx is T1 for SB v1.0, T3 for SB v2.0, T4 for SB Pro, and T6 for SB16.
 
 AWE32 requires a ROM dump called `awe32.raw`. AWE-DUMP is a utility which can get a dump from a real card. Most EMU8000 functionality should work, however filters are not correct and reverb/chorus effects are not currently emulated.
+The AWE64 uses the same ROM image when selected in PCem.
 
 <hr>
 

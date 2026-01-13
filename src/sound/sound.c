@@ -43,6 +43,7 @@ SOUND_CARD sc_sbprov2 = {"Sound Blaster Pro v2", "sbprov2", &sb_pro_v2_device};
 SOUND_CARD sc_sbpromcv = {"Sound Blaster Pro MCV", "sbpromcv", &sb_pro_mcv_device};
 SOUND_CARD sc_sb16 = {"Sound Blaster 16", "sb16", &sb_16_device};
 SOUND_CARD sc_sbawe32 = {"Sound Blaster AWE32", "sbawe32", &sb_awe32_device};
+SOUND_CARD sc_sbawe64 = {"Sound Blaster AWE64", "sbawe64", &sb_awe32_device};
 SOUND_CARD sc_adlibgold = {"Adlib Gold", "adlibgold", &adgold_device};
 SOUND_CARD sc_wss = {"Windows Sound System", "wss", &wss_device};
 SOUND_CARD sc_azt2316a = {"Aztech Sound Galaxy Pro 16 AB (Washington)", "azt2316a", &azt2316a_device};
@@ -277,6 +278,7 @@ void sound_init_builtin() {
         pcem_add_sound(&sc_sbpromcv);
         pcem_add_sound(&sc_sb16);
         pcem_add_sound(&sc_sbawe32);
+        pcem_add_sound(&sc_sbawe64);
         pcem_add_sound(&sc_adlibgold);
         pcem_add_sound(&sc_wss);
         pcem_add_sound(&sc_azt2316a);
